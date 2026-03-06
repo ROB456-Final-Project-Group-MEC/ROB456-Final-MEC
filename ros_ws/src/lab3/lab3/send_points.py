@@ -566,7 +566,7 @@ def main(args=None):
 	rclpy.init(args=args)
 
 	# Create a list of points that will take the robot through the map
-	points = [(-6,-6), (-4.5, -3.0), (-4.5, 0.0), (-1.0, 0.0)]
+	points = [(-6.0,-6.0), (-5.0,-5.0), (-4.5, -3.0), (-4.5, 0.0), (-1.0, 0.0)]
 	send_points = SendPoints(points)
 
 	# Multi-threaded execution

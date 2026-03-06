@@ -48,5 +48,25 @@
     ros2 launch lab3 lab3.launch.py world:=simple launch_rviz:=true
 
 # individual terminal commands to run each of the nodes
+
+                            # 1. cd into the source folder
+                            cd Desktop/CodingProjects/ROB456-Final-MEC/ros_ws/src
+
+                            # 2. clone stage_ros2 from github
+                            git clone https://github.com/tuw-robotics/stage_ros2.git
+
+                            # 3. go back to the ros workspace
+                            cd ..
+
+                            # 4. install dependancies (requires password)
+                            rosdep install --from-paths src --ignore-src -r -y
+
+                            # 5. colcon build the new stage package specifically
+                            colcon build --symlink-install --packages-select stage_ros2
+
+                            # 6. resource the workspace
+                            source install/setup.bash
+
+
     
 

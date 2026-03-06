@@ -419,7 +419,7 @@ class SendPoints(Node):
 			self.get_logger().info(f"Point {pt_xy} is out of bounds in the image map, returning closest point in bounds")
 			return None
 
-		self.get_logger().info(f"before {pt_xy} after {im_u}, {im_v}")
+		# self.get_logger().info(f"before {pt_xy} after {im_u}, {im_v}")
 		return (im_u, im_v)
 			
 	def from_image_to_map(self, map_msg : OccupancyGrid, pt_uv = (0, 0)):
@@ -439,7 +439,7 @@ class SendPoints(Node):
 		pt_x = pt_uv[0] * info.resolution + info.origin.position.x
 		pt_y = pt_uv[1] * info.resolution + info.origin.position.y
 
-		self.get_logger().info(f"before {pt_uv} after {pt_x}, {pt_y}")
+		# self.get_logger().info(f"before {pt_uv} after {pt_x}, {pt_y}")
 		return (pt_x, pt_y)
 
 	def map_callback(self, map_msg : OccupancyGrid):
@@ -566,7 +566,7 @@ def main(args=None):
 	rclpy.init(args=args)
 
 	# Create a list of points that will take the robot through the map
-	points = [(-4.5, -3.0), (-4.5, 0.0), (-1.0, 0.0)]
+	points = [(-6,-6), (-4.5, -3.0), (-4.5, 0.0), (-1.0, 0.0)]
 	send_points = SendPoints(points)
 
 	# Multi-threaded execution

@@ -406,9 +406,20 @@ class SendPoints(Node):
 		#   Don't forget to cast to an int
   # YOUR CODE HERE
 
-		# TODO
-		
-		# self.get_logger().info(f"before {pt_xy} after {im_u}, {im_v}")
+		# TODO test this... it is untested and likely wrong
+
+		im_u = int((pt_xy[0] - info.origin.position.x) / info.resolution)
+		im_v = int((pt_xy[1] - info.origin.position.y) / info.resolution)
+
+		x_out_of_bounds = im_u < 0 or im_u >= info.width
+		y_out_of_bounds = im_v < 0 or im_v >= info.height
+		out_of_bounds = x_out_of_bounds or y_out_of_bounds
+
+		if out_of_bounds:
+			self.get_logger().info(f"Point {pt_xy} is out of bounds in the image map, returning closest point in bounds")
+			return None
+
+		self.get_logger().info(f"before {pt_xy} after {im_u}, {im_v}")
 		return (im_u, im_v)
 			
 	def from_image_to_map(self, map_msg : OccupancyGrid, pt_uv = (0, 0)):
@@ -422,10 +433,13 @@ class SendPoints(Node):
 		pt_y = 0.0
 		# GUIDE: Multiply by the resolution then add the origin position of the map 
   # YOUR CODE HERE
-		# self.get_logger().info(f"before {pt_uv} after {pt_x}, {pt_y}")
 
-		# TODO
+		# TODO test this... it is untested and likely wrong
 
+		pt_x = pt_uv[0] * info.resolution + info.origin.position.x
+		pt_y = pt_uv[1] * info.resolution + info.origin.position.y
+
+		self.get_logger().info(f"before {pt_uv} after {pt_x}, {pt_y}")
 		return (pt_x, pt_y)
 
 	def map_callback(self, map_msg : OccupancyGrid):
@@ -455,12 +469,18 @@ class SendPoints(Node):
 		robot_current_loc_in_image = self.from_map_to_image(map_msg=map_msg, pt_xy=robot_current_loc_in_map)
 		self.get_logger().info(f"Robot current location {robot_current_loc_in_map}")
 
-		# GUIDE: Change this to get just the points you might consider looking at and perhaps don't do it every time a map is made
+
+
+
+		# TODO GUIDE: Change this to get just the points you might consider looking at and perhaps don't do it every time a map is made
 		all_unseen_pts = find_all_possible_goals(im_thresh)  # Your exploring code
 		reachable_pts = []
 		for p in all_unseen_pts:
 			map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
 			reachable_pts.append(map_xy)
+
+
+
 
 		# This puts markers in RViz for all unseen points
 		self._set_reachable_markers(reachable_pts)
@@ -469,7 +489,13 @@ class SendPoints(Node):
 		#   If we're on the way to the current goal, path plan to the closest goal point that is reachable
 		#   If we're headed towards the last goal, get a goal from best_pt
 
+
+
+
 		# TODO
+
+
+
 
 		# The final goal point in image coords
 		if len(self.goal_points) > 0:		
@@ -499,7 +525,7 @@ class SendPoints(Node):
 
 		path_pts = []
 		try:
-			path = dijkstra(im_thresh, robot_current_loc_in_image, goal_loc_in_image)
+			path = dijkstra(im_thresh, robot_current_loc_in_image, goal_loc_in_image, method="A*")
 			self.get_logger().info(f"Path {path}")	
 			path_waypoints = find_waypoints(im_thresh, path)
 			self.get_logger().info(f"Path waypoints {path_waypoints}")	
@@ -521,7 +547,13 @@ class SendPoints(Node):
 		# GUIDE: This replaces the last goal if the robot has gone through the first two.
 		# THIS IS AN EXAMPLE of how to replace goal points. You can also use skip_current_goal and add_more_goal_points
 
+
+
+
 		# TODO
+
+
+
 
 		if self.completed_all_goals():		
 			self.get_logger().info(f"Replacing way points with new ones {path_pts}")	

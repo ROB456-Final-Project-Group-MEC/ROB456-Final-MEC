@@ -411,13 +411,14 @@ class SendPoints(Node):
 		im_u = int((pt_xy[0] - info.origin.position.x) / info.resolution)
 		im_v = int((pt_xy[1] - info.origin.position.y) / info.resolution)
 
-		x_out_of_bounds = im_u < 0 or im_u >= info.width
-		y_out_of_bounds = im_v < 0 or im_v >= info.height
-		out_of_bounds = x_out_of_bounds or y_out_of_bounds
+		# x_out_of_bounds = im_u < 0 or im_u >= info.width
+		# y_out_of_bounds = im_v < 0 or im_v >= info.height
+		# out_of_bounds = x_out_of_bounds or y_out_of_bounds
 
-		if out_of_bounds:
-			self.get_logger().info(f"Point {pt_xy} is out of bounds in the image map, returning closest point in bounds")
-			return None
+		# self.get_logger().info(f"Point {pt_xy} --> {im_u,im_v}")
+		# if out_of_bounds:
+		# 	self.get_logger().info(f"Point {pt_xy} is out of bounds in the image map, returning closest point in bounds")
+		# 	return None
 
 		# self.get_logger().info(f"before {pt_xy} after {im_u}, {im_v}")
 		return (im_u, im_v)

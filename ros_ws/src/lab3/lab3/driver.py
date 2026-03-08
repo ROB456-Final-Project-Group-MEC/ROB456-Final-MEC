@@ -470,7 +470,7 @@ def main(args=None):
 
 	# Make a node class.  The idiom in ROS2 is to encapsulte everything in a class
 	# that derives from Node.
-	driver = Lab3Driver(threshold=0.725)
+	driver = Lab3Driver(threshold=0.75)
 
 	# Multi-threaded execution
 	executor = MultiThreadedExecutor()

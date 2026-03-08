@@ -298,7 +298,7 @@ def find_best_point(im, possible_points : list, robot_loc, search_dist=80):
                 min_dist = dist
 
     else:
-        
+
         min_dist = np.hypot(im.shape[1], im.shape[0])
         for p in at_least_search_dist:
             
@@ -351,7 +351,7 @@ def find_waypoints(im, path, distance_between_points=5):
 
     waypoints.append(new_path[-1])
 
-    waypoints.reverse()
+    # waypoints.reverse()
     return waypoints
 
 

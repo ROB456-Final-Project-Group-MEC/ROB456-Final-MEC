@@ -526,7 +526,6 @@ class SendPoints(Node):
 				map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
 				path_pts.append(map_xy)
 			self._set_path_markers(path_pts, 1)
-			# self.set_marker_points() do we need this (i added it just in case)??
 		except IndexError:
 			self.get_logger().info("Robot or goal location not in image map")
 		except ValueError:

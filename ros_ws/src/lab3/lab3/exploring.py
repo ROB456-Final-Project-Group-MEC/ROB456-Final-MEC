@@ -242,7 +242,7 @@ def find_best_points(im, possible_points : list, robot_loc=None):
 
     return better_filtered2
 
-def find_best_point(im, possible_points : list, robot_loc):
+def find_best_point(im, possible_points : list, robot_loc, search_dist=80):
     """ Pick one of the unseen points to go to
     @param im - thresholded image
     @param possible_points - possible points to chose from (list of tuples)
@@ -278,16 +278,35 @@ def find_best_point(im, possible_points : list, robot_loc):
         if count_better_pts >= 5:
             better_filtered2.append(p)
 
-
-    min_dist = np.hypot(im.shape[1], im.shape[0])
-    min_dist_goal = (-1,-1)
-
+    at_least_search_dist = []
     for p in better_filtered2:
-        
         dist = np.hypot(p[0] - robot_loc[0], p[1] - robot_loc[1])
-        if dist < min_dist:
-            min_dist_goal = p 
-            min_dist = dist
+        if dist > search_dist:
+            at_least_search_dist.append(p)
+
+
+
+    min_dist_goal = (-1,-1)
+    if len(at_least_search_dist) > 0:
+
+        min_dist = np.hypot(im.shape[1], im.shape[0])
+        for p in at_least_search_dist:
+            
+            dist = np.hypot(p[0] - robot_loc[0], p[1] - robot_loc[1])
+            if dist < min_dist:
+                min_dist_goal = p 
+                min_dist = dist
+
+    else:
+        
+        min_dist = np.hypot(im.shape[1], im.shape[0])
+        for p in at_least_search_dist:
+            
+            dist = np.hypot(p[0] - robot_loc[0], p[1] - robot_loc[1])
+            if dist < min_dist:
+                min_dist_goal = p 
+                min_dist = dist
+
 
     return min_dist_goal
 

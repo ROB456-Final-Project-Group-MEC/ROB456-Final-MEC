@@ -376,7 +376,11 @@ class Lab3Driver(Node):
 		
 		mindex = np.where(np.isclose(scan.ranges, min_reading))[0][0]
 		mangle = angle_min+(mindex*angle_delta)
-		my_bot_width = 0.4
+		my_bot_width = 0.38
+
+		# ignore the obstacle if the goal is in front and the obstacle is on the side
+		if is_in_front(ang_to_goal, dist_to_goal, my_bot_width) and not is_in_front(mangle, min_reading, my_bot_width*1.125):
+			return False, 0.0, 0.0
 
 		# if we are facing the obstacle, back up (we already know the goal isn't between the bot and the obstacle)
 		if is_in_front(mangle, min_reading, my_bot_width*1.3) and min_reading < range_max/8:
@@ -429,8 +433,8 @@ class Lab3Driver(Node):
 		#  Note: 0.4 is a good speed if nothing is in front of the robot
 
 		min_speed = 0.015
-		max_speed = 0.3         # This moves about 0.01 m between scans
-		max_turn = np.pi * 0.075  # This turns about 2 degrees between scans
+		max_speed = 0.4         # This moves about 0.01 m between scans
+		max_turn = np.pi * 0.1  # This turns about 2 degrees between scans
 
   # YOUR CODE HERE
 

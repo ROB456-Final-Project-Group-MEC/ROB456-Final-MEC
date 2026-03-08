@@ -30,7 +30,7 @@ from tf2_ros.buffer import Buffer
 
 # Your path planning
 from lab3.path_planning import dijkstra, is_free
-from lab3.exploring import find_all_possible_goals, find_best_point, find_waypoints
+from lab3.exploring import find_all_possible_goals, find_best_point, find_waypoints, find_best_points
 
 
 class SendPoints(Node):
@@ -472,31 +472,23 @@ class SendPoints(Node):
 
 
 
-
-		# TODO GUIDE: Change this to get just the points you might consider looking at and perhaps don't do it every time a map is made
+		# TODONE GUIDE: Change this to get just the points you might consider looking at and perhaps don't do it every time a map is made
 		all_unseen_pts = find_all_possible_goals(im_thresh)  # Your exploring code
+		better_pts = find_best_points(im_thresh, all_unseen_pts)
 		reachable_pts = []
-		for p in all_unseen_pts:
+		for p in better_pts:
 			map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
 			reachable_pts.append(map_xy)
-
-
 
 
 		# This puts markers in RViz for all unseen points
 		self._set_reachable_markers(reachable_pts)
 
-		# GUIDE: This is currently set up to call path planning every iteration (which is probably not what you want)
+
+
+		# TODO GUIDE: This is currently set up to call path planning every iteration (which is probably not what you want)
 		#   If we're on the way to the current goal, path plan to the closest goal point that is reachable
 		#   If we're headed towards the last goal, get a goal from best_pt
-
-
-
-
-		# TODO
-
-
-
 
 		# The final goal point in image coords
 		if len(self.goal_points) > 0:		
@@ -546,16 +538,10 @@ class SendPoints(Node):
 			else:
 				self.get_logger().info(f"Robot starting location not free {robot_current_loc_in_image}")
 
+
+
 		# GUIDE: This replaces the last goal if the robot has gone through the first two.
 		# THIS IS AN EXAMPLE of how to replace goal points. You can also use skip_current_goal and add_more_goal_points
-
-
-
-
-		# TODO
-
-
-
 
 		if self.completed_all_goals():		
 			self.get_logger().info(f"Replacing way points with new ones {path_pts}")	

@@ -187,10 +187,10 @@ def main(args=None):
 	rclpy.init(args=args)
 
 	# Create a list of points on a circle. Send points will turn them into markers and send goals to driver
-	# points = [(5 * np.cos(theta), 5 * np.sin(theta)) for theta in np.linspace(0.0, 2 * np.pi, 15)]
+	points = [(5 * np.cos(theta), 5 * np.sin(theta)) for theta in np.linspace(0.0, 2 * np.pi, 15)]
 
 	# creat goal points for the robot to follow down the EC hallway
-	points = [(-4.0,0.0), (-2.5,0.0), (0.0,-6.0), (-0.75,0.0), (6.0,0.0)]
+	# points = [(-4.0,-0.8), (6.0,-1.0)]
 	send_points = SendPoints(points)
 
 	# Multi-threaded execution

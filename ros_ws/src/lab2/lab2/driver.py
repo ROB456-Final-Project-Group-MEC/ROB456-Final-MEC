@@ -359,14 +359,17 @@ class Lab3Driver(Node):
 
 		# if all scan ranges are max range, the scan sees nothing
 		if np.isclose(np.min(scan.ranges),range_max):
-			# self.get_logger().info("nothing detected by scan EZ")
+			self.get_logger().info("nothing detected by scan EZ")
 			return False, 0.0, 0.0
 		
 		min_reading = np.min(scan.ranges)
 		# if I can go straight to the goal, do it
 		if dist_to_goal < min_reading:
+			self.get_logger().info("goal closer than nearest object EZ")
 			return False, 0.0, 0.0
 		
+
+		# helper functions:
 		# check if the obstacle is in front of the robot or not
 		def is_in_front(angle, dist, bot_width):
 			width_from_center = np.abs(dist*np.sin(angle))
@@ -374,41 +377,100 @@ class Lab3Driver(Node):
 				return True
 			return False
 		
+		# get the distance on the side of the robot
+		def get_side_dist(angle, dist):
+			width_from_center = np.abs(dist*np.sin(angle))
+			return width_from_center
+		
+
 		mindex = np.where(np.isclose(scan.ranges, min_reading))[0][0]
 		mangle = angle_min+(mindex*angle_delta)
-		my_bot_width = 0.4
+		my_bot_width = 0.40
 
+
+		# TODO try classifying the object as an object or wall
+		
+
+
+
+
+
+
+		trans = 1.0
+		rot = 1.0
+
+		# attempt to keep a constant distance on the side of the robot
+		follow_wall_error = get_side_dist(mangle, min_reading) - my_bot_width
+
+		if get_side_dist(mangle, min_reading) < my_bot_width and min_reading < range_max/5.5:
+
+			if mangle > 0:
+				rot *= 1.0 * np.tanh(follow_wall_error/my_bot_width)
+			else:
+				rot *= -1.0 * np.tanh(follow_wall_error/my_bot_width)
+
+			self.get_logger().info("following wall EZ")
+			return True, trans, rot
+
+
+		# # if object is in front and reasonably close, avoid it by turning (this assumes the angle to the object is small)
+		# if is_in_front(mangle, min_reading, my_bot_width*1.125) and min_reading < range_max/5.5:
+		
+		# 	if mangle > 0:
+		# 		# object in front right, turn left
+		# 		rot *= -0.8
+		# 	else:
+		# 		# object in front left, turn right
+		# 		rot *= 0.8
+
+		# 	trans = 0.0
+
+		# 	return True, trans, rot
+		
+		# elif abs(mangle) < np.pi/6
+		
+		
+		
+		
+
+
+
+		# TODO include this backup code later
 		# if we are facing the obstacle, back up (we already know the goal isn't between the bot and the obstacle)
-		if is_in_front(mangle, min_reading, my_bot_width*1.3) and min_reading < range_max/8:
-			return True, -0.55, 0.0
+		# if is_in_front(mangle, min_reading, my_bot_width*1.3) and min_reading < range_max/8:
+		# 	return True, -0.55, 0.0
 		
 		# scale the speed based on distance to the obstacle
 		# trans = min_reading/(range_max/4)
-		trans = 0.0
-		rot = 1.0			
+		# trans = 0.0
+		# rot = 1.0			
 
 		# turn out of the way if the obstacle is in a location worth avoiding (in front and close)
 		if min_reading < range_max/5.5 and abs(mangle-ang_to_goal) < pi/6:
-			if is_in_front(mangle, min_reading, my_bot_width*1.5):
+			if is_in_front(mangle, min_reading, my_bot_width*1.125):
 			
 
-				if mangle > 0 and mangle:
+				if mangle > 0:
 					# object in front right, turn left
 					rot *= -0.8
 				else:
 					# object in front left, turn right
 					rot *= 0.8
 
+				self.get_logger().info("avoiding frontal object EZ")
 				return True, trans, rot
 			
 			elif abs(mangle) < pi/3:
 				# drive past the side of the obstacle
+				self.get_logger().info("slowly driving past a nearby object EZ")
 				return True, 0.5, 0.0
 			
 			else:
 				# if the angle to the obstacle is greater than 60 degrees, turn a little back towards the goal
+				self.get_logger().info("turning back to goal EZ")
 				return True, 0.35, np.tanh(pi*ang_to_goal)
 		
+		self.get_logger().info("no obstacle conditions met, reverting to goal attack EZ")
 		return False, 0.0, 0.0
 
 	def get_twist(self, scan):
@@ -470,7 +532,7 @@ def main(args=None):
 
 	# Make a node class.  The idiom in ROS2 is to encapsulte everything in a class
 	# that derives from Node.
-	driver = Lab3Driver(threshold=0.725)
+	driver = Lab3Driver(threshold=0.4)
 
 	# Multi-threaded execution
 	executor = MultiThreadedExecutor()

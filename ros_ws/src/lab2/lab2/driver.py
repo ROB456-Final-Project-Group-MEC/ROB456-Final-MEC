@@ -356,6 +356,9 @@ class Lab3Driver(Node):
 		num_readings = len(scan.ranges)
 		range_max = scan.range_max
 		angle_delta = (angle_max-angle_min)/num_readings
+		angles = []
+		for i in range(num_readings):
+			angles.append(angle_min+i*angle_delta)
 
 		# if all scan ranges are max range, the scan sees nothing
 		if np.isclose(np.min(scan.ranges),range_max):
@@ -388,27 +391,153 @@ class Lab3Driver(Node):
 		my_bot_width = 0.40
 
 
-		# TODO try classifying the object as an object or wall
+		# if min_reading > range_max/5.5:
+		# 	return False, 0.0, 0.0
+
+
+		# TODONE try using VFH
+
+
+		safe_dist = range_max / 5.5
+			
+		if min_reading > safe_dist:
+			return False, 0.0, 0.0
+
+		# robot radius wihth buffer room
+		robot_radius = (my_bot_width/2)*1.25
+		
+		# Array of booleans: True = safe to travel, False = blocked
+		free_bins = np.ones(num_readings, dtype=bool)
+		
+		for i, r in enumerate(scan.ranges):
+			# Only care about valid readings within our safety distance
+			if r < safe_dist:
+				
+				# Widen the obstacle by the robot's radius
+				try:
+					# Calculate the angular width of the robot at distance r
+					enlargement_angle = np.arcsin(robot_radius / r)
+				except ValueError:
+					# If r < robot_radius, the obstacle is basically inside the robot. Block a massive chunk.
+					enlargement_angle = np.pi / 2.0 
+				
+				# Convert that angle into a number of array bins
+				bins_to_block = int(enlargement_angle / angle_delta)
+				
+				# Find the start and end indices to block out
+				start_idx = max(0, i - bins_to_block)
+				end_idx = min(num_readings - 1, i + bins_to_block)
+				
+				# Mark these bins as blocked
+				free_bins[start_idx:end_idx + 1] = False
+
+		# Emergency stop if all directions are blocked
+		if not np.any(free_bins):
+			self.get_logger().info("All directions blocked, rotating search EZ")
+			return True, 0.0, 1.0 # Velocity = 0, Rotate in place
+		
+		# Find the bin that points closest to our goal
+		goal_bin = int((ang_to_goal - angle_min) / angle_delta)
+
+		best_bin = -1
+		min_cost = float('inf')
+
+		# Evaluate cost for each free bin
+		for i in range(num_readings):
+			if free_bins[i]:
+				# Because we already artificially widened the obstacles, 
+				# it is perfectly safe to pick the free bin closest to the goal.
+				cost = abs(i - goal_bin)
+				if cost < min_cost:
+					min_cost = cost
+					best_bin = i
+
+		# Convert the chosen bin back into a steering angle
+		target_heading = angle_min + (best_bin * angle_delta)
+
+		if abs(target_heading) < np.pi/6:
+			self.get_logger().info(f"target heading 1 (safe pass): {target_heading:.2f} EZ")
+			return True, 0.5, np.tanh(np.pi * target_heading)
+		else:
+			self.get_logger().info(f"target heading 2 (hard turn): {target_heading:.2f} EZ")
+			return True, 0.0, np.tanh(np.pi * target_heading)
 
 
 
 
 
-		trans = 1.0
-		rot = 1.0
+		# threshold = 0.5
+		# histogram = np.zeros(num_readings)
+        
+		# for r, theta in zip(scan.ranges, angles):
 
-		# attempt to keep a constant distance on the side of the robot
-		follow_wall_error = get_side_dist(mangle, min_reading) - my_bot_width
+		# 	if r < range_max/5.5:
 
-		if get_side_dist(mangle, min_reading) < my_bot_width and min_reading < range_max/5.5:
+		# 		# Obstacle magnitude: closer obstacles yield a higher magnitude
+		# 		magnitude = range_max/5.5 - r 
+				
+		# 		# Determine which bin this angle falls into
+		# 		bin_index = int((theta - angle_min) / angle_delta)
+				
+		# 		# Add to histogram if within bounds
+		# 		if 0 <= bin_index < num_readings:
+		# 			histogram[bin_index] += magnitude
 
-			if mangle > 0:
-				rot *= 1.0 * np.tanh(follow_wall_error/my_bot_width)
-			else:
-				rot *= -1.0 * np.tanh(follow_wall_error/my_bot_width)
+		# # Optional Step: Smooth the histogram to account for robot width
+		# # This prevents the robot from squeezing through impossibly tight gaps
+		# smoothed_hist = np.convolve(histogram, [0.25, 0.5, 0.25], mode='same')
 
-			self.get_logger().info("following wall EZ")
-			return True, trans, rot
+		# # find options that look free
+		# free_bins = smoothed_hist < threshold
+
+		# # Emergency stop if all directions are blocked
+		# if not np.any(free_bins):
+		# 	self.get_logger().info("All directions blocked, rotating search EZ")
+		# 	return True, 0.0, 1.0 # Velocity = 0, Heading = 0
+		
+		# # Convert our target goal_angle into a target bin index
+		# goal_bin = int((ang_to_goal - angle_min) / angle_delta)
+
+		# best_bin = -1
+		# min_cost = float('inf')
+
+		# # Evaluate cost for each free bin
+		# for i in range(num_readings):
+		# 	if free_bins[i]:
+		# 		# Cost is simply how many bins away it is from the goal angle
+		# 		cost = abs(i - goal_bin)
+		# 		if cost < min_cost:
+		# 			min_cost = cost
+		# 			best_bin = i
+
+		# # Convert the chosen bin back into a steering angle (center of the bin)
+		# target_heading = angle_min + (best_bin * angle_delta) + (angle_delta / 2.0)
+
+		# if abs(target_heading) < np.pi/6:
+		# 	self.get_logger().info(f"target heading 1: {target_heading} EZ")
+		# 	return True, 0.5, np.tanh(np.pi*target_heading)
+		# else:
+		# 	self.get_logger().info(f"target heading 2: {target_heading} EZ")
+		# 	return True, 0.0, np.tanh(np.pi*target_heading)
+
+
+
+
+		# trans = 1.0
+		# rot = 1.0
+
+		# # attempt to keep a constant distance on the side of the robot
+		# follow_wall_error = get_side_dist(mangle, min_reading) - my_bot_width
+
+		# if get_side_dist(mangle, min_reading) < my_bot_width and min_reading < range_max/5.5:
+
+		# 	if mangle > 0:
+		# 		rot *= 1.0 * np.tanh(follow_wall_error/my_bot_width)
+		# 	else:
+		# 		rot *= -1.0 * np.tanh(follow_wall_error/my_bot_width)
+
+		# 	self.get_logger().info("following wall EZ")
+		# 	return True, trans, rot
 
 
 		# # if object is in front and reasonably close, avoid it by turning (this assumes the angle to the object is small)
@@ -444,32 +573,32 @@ class Lab3Driver(Node):
 		# rot = 1.0			
 
 		# turn out of the way if the obstacle is in a location worth avoiding (in front and close)
-		if min_reading < range_max/5.5 and abs(mangle-ang_to_goal) < pi/6:
-			if is_in_front(mangle, min_reading, my_bot_width*1.125):
+		# if min_reading < range_max/5.5 and abs(mangle-ang_to_goal) < pi/6:
+		# 	if is_in_front(mangle, min_reading, my_bot_width*1.125):
 			
 
-				if mangle > 0:
-					# object in front right, turn left
-					rot *= -0.8
-				else:
-					# object in front left, turn right
-					rot *= 0.8
+		# 		if mangle > 0:
+		# 			# object in front right, turn left
+		# 			rot *= -0.8
+		# 		else:
+		# 			# object in front left, turn right
+		# 			rot *= 0.8
 
-				self.get_logger().info("avoiding frontal object EZ")
-				return True, trans, rot
+		# 		self.get_logger().info("avoiding frontal object EZ")
+		# 		return True, trans, rot
 			
-			elif abs(mangle) < pi/3:
-				# drive past the side of the obstacle
-				self.get_logger().info("slowly driving past a nearby object EZ")
-				return True, 0.5, 0.0
+		# 	elif abs(mangle) < pi/3:
+		# 		# drive past the side of the obstacle
+		# 		self.get_logger().info("slowly driving past a nearby object EZ")
+		# 		return True, 0.5, 0.0
 			
-			else:
-				# if the angle to the obstacle is greater than 60 degrees, turn a little back towards the goal
-				self.get_logger().info("turning back to goal EZ")
-				return True, 0.35, np.tanh(pi*ang_to_goal)
+		# 	else:
+		# 		# if the angle to the obstacle is greater than 60 degrees, turn a little back towards the goal
+		# 		self.get_logger().info("turning back to goal EZ")
+		# 		return True, 0.35, np.tanh(pi*ang_to_goal)
 		
-		self.get_logger().info("no obstacle conditions met, reverting to goal attack EZ")
-		return False, 0.0, 0.0
+		# self.get_logger().info("no obstacle conditions met, reverting to goal attack EZ")
+		# return False, 0.0, 0.0
 
 	def get_twist(self, scan):
 		"""This is the method that calculate the twist

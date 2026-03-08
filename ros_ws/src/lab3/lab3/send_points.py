@@ -500,7 +500,7 @@ class SendPoints(Node):
 			#   If we're headed towards the last goal, get a goal from best_pt
 
 			# next destination is a image pixel not robot coordinate
-			next_destination = find_best_point(im_thresh, all_unseen_pts, robot_current_loc_in_image)
+			next_destination = find_best_point(im_thresh, all_unseen_pts, robot_current_loc_in_image, search_dist=45)
 			self.get_logger().info(f"Getting best EZ: {next_destination} {is_free(im, next_destination)}")
 
 
@@ -579,35 +579,6 @@ class SendPoints(Node):
 
 			self.get_logger().info(f"Replacing way points with new ones {path_pts}")	
 			self.replace_goal_points(path_pts, False)
-
-		elif len(self.goal_points) <= 2:
-
-			next_destination = find_best_point(im_thresh, all_unseen_pts, robot_current_loc_in_image)
-			self.get_logger().info(f"Getting best EZ: {next_destination} {is_free(im, next_destination)}")
-
-			path_pts = []
-			try:
-				path = dijkstra(im_thresh, robot_current_loc_in_image, next_destination, method="A*")
-				self.get_logger().info(f"New Path {path}")	
-				path_waypoints = find_waypoints(im_thresh, path)
-				self.get_logger().info(f"Path waypoints {path_waypoints}")	
-				for p in path_waypoints:
-					map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
-					path_pts.append(map_xy)
-				self._set_path_markers(path_pts, 1)
-			except IndexError:
-				self.get_logger().info("Robot or goal location not in image map")
-			except ValueError:
-				if is_free(im_thresh, robot_current_loc_in_image):
-					if is_free(im_thresh, next_destination):
-						self.get_logger().info(f"No valid path {robot_current_loc_in_image} to {next_destination}")
-					else:
-						self.get_logger().info(f"Goal not free {robot_current_loc_in_image} to {next_destination}")
-				else:
-					self.get_logger().info(f"Robot starting location not free {robot_current_loc_in_image}")
-
-			self.get_logger().info(f"Apending new way points EZ: {path_pts}")	
-			self.add_more_goal_points(path_pts)
 
 
 

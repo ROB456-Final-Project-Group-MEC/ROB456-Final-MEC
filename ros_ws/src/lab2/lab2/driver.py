@@ -389,8 +389,6 @@ class Lab3Driver(Node):
 
 
 		# TODO try classifying the object as an object or wall
-		
-
 
 
 

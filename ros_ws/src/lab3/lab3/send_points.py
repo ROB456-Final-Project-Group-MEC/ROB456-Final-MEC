@@ -152,7 +152,7 @@ class SendPoints(Node):
 			self.get_logger().info(f"Got to goal {self.next_goal_index}, moving to next")
 			self.start_timer.reset()  # Increment to the next goal	
 		else:
-			# GUIDE: This is where you should flag if you want to bail on the current set of goals
+			# TODO GUIDE: This is where you should flag if you want to bail on the current set of goals
 			# entirely or just skip to the next one
 			self.get_logger().info(f"Did not get to goal, skipping {self.next_goal_index}")
 

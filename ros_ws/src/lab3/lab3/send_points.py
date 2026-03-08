@@ -469,6 +469,7 @@ class SendPoints(Node):
 		robot_current_loc_in_map = (transform.transform.translation.x, transform.transform.translation.y)
 		robot_current_loc_in_image = self.from_map_to_image(map_msg=map_msg, pt_xy=robot_current_loc_in_map)
 		self.get_logger().info(f"Robot current location {robot_current_loc_in_map}")
+		self.get_logger().info(f"Robot current location image {robot_current_loc_in_image}")
 
 
 
@@ -515,7 +516,7 @@ class SendPoints(Node):
 			#   If we're headed towards the last goal, get a goal from best_pt
 
 			# next destination is a image pixel not robot coordinate
-			next_destination = find_best_point(im, all_unseen_pts, robot_current_loc_in_image)
+			next_destination = find_best_point(im_thresh, all_unseen_pts, robot_current_loc_in_image)
 			self.get_logger().info(f"Getting best EZ: {next_destination} {is_free(im, next_destination)}")
 
 

@@ -273,43 +273,40 @@ class Lab3Driver(Node):
 	def set_target(self):
 		""" Convert the goal into an x,y position (target) in the ROBOT's coordinate space
 		@return the new target as a Point """
+		# Take a snapshot of the current goal
+		# This protects us from other threads modifying self.goal while this function is running
+		current_goal = self.goal
 
-		if self.goal:
-			# Transforms for all coordinate frames in the robot are stored in a transform tree
-			#  odom is the coordinate frame of the "world", base_link is the base link of the robot
-			# A transform stores a rotation/translation to go from one coordinate system to the other
-			transform = self.tf_buffer.lookup_transform('odom', 'base_link', rclpy.time.Time(), timeout=rclpy.duration.Duration(seconds=1.0))
+		# Check the snapshot, not the class variable
+		if current_goal is None:
+			self.get_logger().debug("set_target called but self.goal is None. Skipping.")
+			return None
 
-			# This applies the transform to the Stamped Point
-			#    Note: This does not work, for reasons that are unclear to me
-			self.target = do_transform_point(self.goal, transform)
-			
-			# This does the transform manually, by calculating the theta rotation from the quaternion
-			euler_ang = -atan2(2 * transform.transform.rotation.z * transform.transform.rotation.w,
-			                   1.0 - 2 * transform.transform.rotation.z * transform.transform.rotation.z)
-			
-			# Translate to the base link's origin
-			x = self.goal.point.x - transform.transform.translation.x
-			y = self.goal.point.y - transform.transform.translation.y
+		# Transforms for all coordinate frames in the robot are stored in a transform tree
+		transform = self.tf_buffer.lookup_transform('odom', 'base_link', rclpy.time.Time(), timeout=rclpy.duration.Duration(seconds=1.0))
 
-			# Do the rotation
-			rot_x = x * cos(euler_ang) - y * sin(euler_ang)
-			rot_y = x * sin(euler_ang) + y * cos(euler_ang)
-
-			self.target.point.x = rot_x
-			self.target.point.y = rot_y
-			if self.print_distance_messages:
-				self.get_logger().info(f'Target relative to robot: ({self.target.point.x:.2f}, {self.target.point.y:.2f}), orig ({self.goal.point.x, self.goal.point.y})')
-			
-		else:
-			if self.print_distance_messages:
-				self.get_logger().info(f'No target to get distance to')
-			self.target = None		
+		# This applies the transform to the Stamped Point
+		self.target = do_transform_point(current_goal, transform)
 		
-		# GUIDE: Calculate any additional variables here
-		#  Remember that the target's location is in its own coordinate frame at 0,0, angle 0 (x-axis)
-  # YOUR CODE HERE
+		# This does the transform manually, by calculating the theta rotation from the quaternion
+		euler_ang = -atan2(2 * transform.transform.rotation.z * transform.transform.rotation.w,
+						1.0 - 2 * transform.transform.rotation.z * transform.transform.rotation.z)
+		
+		# Translate to the base link's origin (USE THE SNAPSHOT HERE)
+		x = current_goal.point.x - transform.transform.translation.x
+		y = current_goal.point.y - transform.transform.translation.y
 
+		# Do the rotation
+		rot_x = x * cos(euler_ang) - y * sin(euler_ang)
+		rot_y = x * sin(euler_ang) + y * cos(euler_ang)
+
+		self.target.point.x = rot_x
+		self.target.point.y = rot_y
+		
+		if self.print_distance_messages:
+			self.get_logger().info(f'Target relative to robot: ({self.target.point.x:.2f}, {self.target.point.y:.2f}), orig ({current_goal.point.x, current_goal.point.y})')
+
+		# Calculate final navigation metrics
 		self.ang_to_goal = atan2(self.target.point.y, self.target.point.x)
 		self.dist_to_goal = self.distance_to_target()
 
@@ -318,6 +315,13 @@ class Lab3Driver(Node):
 	def scan_callback(self, scan):
 		""" Lidar scan callback
 		@param scan - has information about the scan, and the distances (see stopper.py in lab1)"""
+
+		# I'm adding this to catch the error when a scan comes in but there is no goal recieved yet from the send points node
+		# this usually happens right after completing a goal
+		if self.goal is None:
+			self.get_logger().debug("scan_callback called but self.goal is None. Skipping.")
+			return
+		
 	
 		if self.print_twist_messages:
 			self.get_logger().info("In scan callback")

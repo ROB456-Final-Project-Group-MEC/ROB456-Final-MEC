@@ -49,6 +49,8 @@
 
 # individual terminal commands to run each of the nodes
 
+                            # ---- installing stage ----
+
                             # 1. cd into the source folder
                             cd Desktop/CodingProjects/ROB456-Final-MEC/ros_ws/src
 

@@ -16,6 +16,7 @@
 
 # The ever-present numpy
 import numpy as np
+from scipy.ndimage import binary_dilation
 import os
 
 # Your path planning code
@@ -170,12 +171,25 @@ def is_reachable(im, pix):
     #  False otherwise
     # You can use four or eight connected - eight will return more points
     # YOUR CODE HERE
-    pixels_to_check = []
-    for ix in range(-1, 2):
-        for iy in range(-1, 2):
-            pixels_to_check.append((pix[0] + ix, pix[1] + iy))
 
-    return np.any([path_planning.is_free(im, p) for p in pixels_to_check])
+    # ---- this is my original way of doing it but it is really slow, so I switched to the method below ----
+    # pixels_to_check = []
+    # for ix in range(-1, 2):
+    #     for iy in range(-1, 2):
+    #         pixels_to_check.append((pix[0] + ix, pix[1] + iy))
+
+    # return np.any([path_planning.is_free(im, p) for p in pixels_to_check])
+
+    # --------------------- this is a much faster way to do it -------------------------
+    """ Checks if a pixel has a free neighbor (255) using a 3x3 slice. """
+    x, y = pix
+    
+    # Grab a 3x3 window around the target pixel instantly
+    window = im[y-1:y+2, x-1:x+2]
+    
+    # Let NumPy check if 255 exists anywhere in that 3x3 grid
+    return np.any(window == 255)
+
 
 
 def find_all_possible_goals(im):
@@ -186,22 +200,50 @@ def find_all_possible_goals(im):
     @return list of possible pixel (x,y) locations"""
 
     # YOUR CODE HERE
-    # create a emplty list to hold the possible goals
-    all_possible_goals = []
 
-    # this is y,x
-    unseen_points = np.argwhere(im == 128)
-    # print(f"Found {len(unseen_points)} unseen points")
-    # print(unseen_points)
+    # ---- this is my original way of doing it but it is really slow, so I switched to the method below ----
+    # # create a emplty list to hold the possible goals
+    # all_possible_goals = []
 
-    for unseen_point in unseen_points:
-        if not 10 < unseen_point[0] < im.shape[0] - 10 or not 10 < unseen_point[1] < im.shape[1] - 10:
-            continue
-        if is_reachable(im, (unseen_point[1], unseen_point[0])):
-            all_possible_goals.append((unseen_point[1], unseen_point[0]))
+    # # this is y,x
+    # unseen_points = np.argwhere(im == 128)
+    # # print(f"Found {len(unseen_points)} unseen points")
+    # # print(unseen_points)
+
+    # for unseen_point in unseen_points:
+    #     if not 10 < unseen_point[0] < im.shape[0] - 10 or not 10 < unseen_point[1] < im.shape[1] - 10:
+    #         continue
+    #     if is_reachable(im, (unseen_point[1], unseen_point[0])):
+    #         all_possible_goals.append((unseen_point[1], unseen_point[0]))
 
 
-    return all_possible_goals
+    # return all_possible_goals
+
+    # --------------------- this is a much faster way to do it -------------------------
+    # Create a mask of all free spaces
+    free_spaces = (im == 255)
+    
+    # "Grow" the free spaces by 1 pixel in all 8 directions
+    # A 3x3 matrix of True values tells it to use 8-connectivity
+    structure = np.ones((3, 3), dtype=bool)
+    adjacent_to_free = binary_dilation(free_spaces, structure=structure)
+    
+    # Create a mask of all unseen spaces
+    unseen_spaces = (im == 128)
+    
+    # Create a mask for valid boundaries (the 10 pixel margin)
+    valid_boundaries = np.zeros_like(im, dtype=bool)
+    valid_boundaries[16:-16, 16:-16] = True
+    
+    # Combine all conditions using fast boolean math (&)
+    # A goal must be unseen AND adjacent to free space AND within boundaries
+    valid_goals_mask = unseen_spaces & adjacent_to_free & valid_boundaries
+    
+    # Extract the Y, X coordinates of the True values
+    y_coords, x_coords = np.where(valid_goals_mask)
+    
+    # Return as a list of (x, y) tuples
+    return list(zip(x_coords, y_coords))
 
 
 
@@ -213,8 +255,6 @@ def find_best_points(im, possible_points : list, robot_loc=None):
     """
     # YOUR CODE HERE
     better_pts = []
-    # min_dist = np.hypot(im.shape[1], im.shape[0])/
-    min_dist_goal = (-1,-1)
     for p in possible_points:
         count_free = 0
         count_unseen = 0

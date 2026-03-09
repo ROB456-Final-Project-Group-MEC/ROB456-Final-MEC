@@ -406,10 +406,12 @@ class SendPoints(Node):
 		#   Don't forget to cast to an int
   # YOUR CODE HERE
 
-		# TODO test this... it is untested and likely wrong
+		# TODONE 
 
 		im_u = int((pt_xy[0] - info.origin.position.x) / info.resolution)
 		im_v = int((pt_xy[1] - info.origin.position.y) / info.resolution)
+
+		# this error handling actually causes more problems than it solves, so commenting out for now - you can add it back in if you want to fix it
 
 		# x_out_of_bounds = im_u < 0 or im_u >= info.width
 		# y_out_of_bounds = im_v < 0 or im_v >= info.height
@@ -435,7 +437,7 @@ class SendPoints(Node):
 		# GUIDE: Multiply by the resolution then add the origin position of the map 
   # YOUR CODE HERE
 
-		# TODO test this... it is untested and likely wrong
+		# TODONE 
 
 		pt_x = pt_uv[0] * info.resolution + info.origin.position.x
 		pt_y = pt_uv[1] * info.resolution + info.origin.position.y
@@ -461,7 +463,7 @@ class SendPoints(Node):
 		im_thresh[im >= 100] = 0    # Wall
 		im_thresh[im == -1] = 128   # Unknown
 
-		self.get_logger().info(f"N free {np.count_nonzero(im_thresh == 255)}, N walls {np.count_nonzero(im_thresh == 0)}, N {np.count_nonzero(im_thresh == 128)}")
+		self.get_logger().info(f"Num free {np.count_nonzero(im_thresh == 255)}, Num walls {np.count_nonzero(im_thresh == 0)}, Num unseen {np.count_nonzero(im_thresh == 128)}")
 
 
 		# Location of robot
@@ -473,17 +475,17 @@ class SendPoints(Node):
 
 
 
+		# ---------- I added this to the end so it doesn't run on every map update, just when searching for new goals ----------
 		# TODONE GUIDE: Change this to get just the points you might consider looking at and perhaps don't do it every time a map is made
-		all_unseen_pts = find_all_possible_goals(im_thresh)  # Your exploring code
-		better_pts = find_best_points(im_thresh, all_unseen_pts)
-		reachable_pts = []
-		for p in better_pts:
-			map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
-			reachable_pts.append(map_xy)
+		# all_unseen_pts = find_all_possible_goals(im_thresh)  # Your exploring code
+		# better_pts = find_best_points(im_thresh, all_unseen_pts)
+		# reachable_pts = []
+		# for p in better_pts:
+		# 	map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
+		# 	reachable_pts.append(map_xy)
 
-
-		# This puts markers in RViz for all unseen points
-		self._set_reachable_markers(reachable_pts)
+		# # This puts markers in RViz for all unseen points
+		# self._set_reachable_markers(reachable_pts)
 
 
 
@@ -494,6 +496,26 @@ class SendPoints(Node):
 		# THIS IS AN EXAMPLE of how to replace goal points. You can also use skip_current_goal and add_more_goal_points
 
 		if self.completed_all_goals():		
+
+
+
+
+
+			all_unseen_pts = find_all_possible_goals(im_thresh)  # Your exploring code
+			better_pts = find_best_points(im_thresh, all_unseen_pts)
+			reachable_pts = []
+			for p in better_pts:
+				map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
+				reachable_pts.append(map_xy)
+
+			# This puts markers in RViz for all unseen points
+			self._set_reachable_markers(reachable_pts)
+
+
+
+
+
+
 
 			# TODONE GUIDE: This is currently set up to call path planning every iteration (which is probably not what you want)
 			#   If we're on the way to the current goal, path plan to the closest goal point that is reachable

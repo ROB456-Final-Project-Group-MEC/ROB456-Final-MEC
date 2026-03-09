@@ -371,9 +371,9 @@ class Lab3Driver(Node):
 		
 		min_reading = np.min(scan.ranges)
 		# if I can go straight to the goal, do it
-		if dist_to_goal < min_reading:
-			# self.get_logger().info("goal closer than nearest object EZ")
-			return False, 0.0, 0.0
+		# if dist_to_goal < min_reading:
+		# 	# self.get_logger().info("goal closer than nearest object EZ")
+		# 	return False, 0.0, 0.0
 		
 
 		# helper functions:
@@ -529,7 +529,7 @@ def main(args=None):
 
 	# Make a node class.  The idiom in ROS2 is to encapsulte everything in a class
 	# that derives from Node.
-	driver = Lab3Driver(threshold=0.75)
+	driver = Lab3Driver(threshold=0.8)
 
 	# Multi-threaded execution
 	executor = MultiThreadedExecutor()

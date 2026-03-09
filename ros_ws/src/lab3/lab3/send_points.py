@@ -498,7 +498,7 @@ class SendPoints(Node):
 		if self.completed_all_goals():		
 
 
-
+			
 
 
 			all_unseen_pts = find_all_possible_goals(im_thresh)  # Your exploring code
@@ -522,86 +522,93 @@ class SendPoints(Node):
 			#   If we're headed towards the last goal, get a goal from best_pt
 
 			# next destination is a image pixel not robot coordinate
-			next_destination = find_best_point(im_thresh, all_unseen_pts, robot_current_loc_in_image, search_dist=65)
+			next_destination = find_best_point(im_thresh, all_unseen_pts, robot_current_loc_in_image, search_dist=80)
 			self.get_logger().info(f"Getting best EZ: {next_destination} {is_free(im, next_destination)}")
 
 
+			unfinished = True
+			if next_destination == (-1.0, -1.0):
+				self.get_logger().info(f"Nowhere else to search map should be generated")
+				unfinished = False
 
-			# original code
-			# The final goal point in image coords
-			# if len(self.goal_points) > 0:		
-			# 	goal_loc_in_image = self.from_map_to_image(map_msg=map_msg, pt_xy=self.goal_points[-1])
-			# else:
-			# 	goal_loc_in_image = (map_msg.info.width // 2, map_msg.info.height // 2)
 
-			# if 0 < goal_loc_in_image[0] < map_msg.info.width and 0 < goal_loc_in_image[1] < map_msg.info.height:
-			# 	# Headed towards last goal and it is now in the free space of the robot
-			# 	goal_loc_in_image = find_best_point(im, all_unseen_pts, robot_current_loc_in_image)  # Use your exploring code to find a good point
-			# 	self.get_logger().info(f"Getting best {goal_loc_in_image} {is_free(im, goal_loc_in_image)}")
-			# else:
-			# 	# This just looks for the last viable goal (that is free) - will grab a goal
-			# 	#  that's already been seen
-			# 	if self.goal_points:
-			# 		for p in self.goal_points:
-			# 			try_goal_loc_in_image = self.from_map_to_image(map_msg=map_msg, pt_xy=p)
-			# 			if try_goal_loc_in_image[0] < map_msg.info.width and try_goal_loc_in_image[1] < map_msg.info.height:
-			# 				if is_free(im_thresh, try_goal_loc_in_image):
-			# 					goal_loc_in_image = try_goal_loc_in_image
+			if unfinished:
 
-			# GUIDE: This calls dijkstra with the goal location and plots the path that you return in RViz
-			#  Note: If you did not fix your code to deal with an unreachable point then this will handle that case
-			#   as an exception
+				# original code
+				# The final goal point in image coords
+				# if len(self.goal_points) > 0:		
+				# 	goal_loc_in_image = self.from_map_to_image(map_msg=map_msg, pt_xy=self.goal_points[-1])
+				# else:
+				# 	goal_loc_in_image = (map_msg.info.width // 2, map_msg.info.height // 2)
 
-			# TODONE
+				# if 0 < goal_loc_in_image[0] < map_msg.info.width and 0 < goal_loc_in_image[1] < map_msg.info.height:
+				# 	# Headed towards last goal and it is now in the free space of the robot
+				# 	goal_loc_in_image = find_best_point(im, all_unseen_pts, robot_current_loc_in_image)  # Use your exploring code to find a good point
+				# 	self.get_logger().info(f"Getting best {goal_loc_in_image} {is_free(im, goal_loc_in_image)}")
+				# else:
+				# 	# This just looks for the last viable goal (that is free) - will grab a goal
+				# 	#  that's already been seen
+				# 	if self.goal_points:
+				# 		for p in self.goal_points:
+				# 			try_goal_loc_in_image = self.from_map_to_image(map_msg=map_msg, pt_xy=p)
+				# 			if try_goal_loc_in_image[0] < map_msg.info.width and try_goal_loc_in_image[1] < map_msg.info.height:
+				# 				if is_free(im_thresh, try_goal_loc_in_image):
+				# 					goal_loc_in_image = try_goal_loc_in_image
 
-			path_pts = []
-			try:
-				path = dijkstra(im_thresh, robot_current_loc_in_image, next_destination, method="A*")
-				self.get_logger().info(f"New Path {path}")	
-				path_waypoints = find_waypoints(im_thresh, path)
-				self.get_logger().info(f"Path waypoints {path_waypoints}")	
-				for p in path_waypoints:
-					map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
-					if np.hypot(map_xy[0]-robot_current_loc_in_map[0],map_xy[1]-robot_current_loc_in_map[1]) > 0.1:
-						path_pts.append(map_xy)
-				self._set_path_markers(path_pts, 1)
-			except IndexError:
-				self.get_logger().info("Robot or goal location not in image map")
-			except ValueError:
-				if is_free(im_thresh, robot_current_loc_in_image):
-					if is_free(im_thresh, next_destination):
-						self.get_logger().info(f"No valid path {robot_current_loc_in_image} to {next_destination}")
+				# GUIDE: This calls dijkstra with the goal location and plots the path that you return in RViz
+				#  Note: If you did not fix your code to deal with an unreachable point then this will handle that case
+				#   as an exception
+
+				# TODONE
+
+				path_pts = []
+				try:
+					path = dijkstra(im_thresh, robot_current_loc_in_image, next_destination, method="A*")
+					self.get_logger().info(f"New Path {path}")	
+					path_waypoints = find_waypoints(im_thresh, path)
+					self.get_logger().info(f"Path waypoints {path_waypoints}")	
+					for p in path_waypoints:
+						map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
+						if np.hypot(map_xy[0]-robot_current_loc_in_map[0],map_xy[1]-robot_current_loc_in_map[1]) > 0.1:
+							path_pts.append(map_xy)
+					self._set_path_markers(path_pts, 1)
+				except IndexError:
+					self.get_logger().info("Robot or goal location not in image map")
+				except ValueError:
+					if is_free(im_thresh, robot_current_loc_in_image):
+						if is_free(im_thresh, next_destination):
+							self.get_logger().info(f"No valid path {robot_current_loc_in_image} to {next_destination}")
+						else:
+							self.get_logger().info(f"Goal not free {robot_current_loc_in_image} to {next_destination}")
 					else:
-						self.get_logger().info(f"Goal not free {robot_current_loc_in_image} to {next_destination}")
-				else:
-					self.get_logger().info(f"Robot starting location not free {robot_current_loc_in_image}")
+						self.get_logger().info(f"Robot starting location not free {robot_current_loc_in_image}")
 
 
-			# original code:
-			# path_pts = []
-			# try:
-			# 	path = dijkstra(im_thresh, robot_current_loc_in_image, goal_loc_in_image, method="A*")
-			# 	self.get_logger().info(f"Path {path}")	
-			# 	path_waypoints = find_waypoints(im_thresh, path)
-			# 	self.get_logger().info(f"Path waypoints {path_waypoints}")	
-			# 	for p in path_waypoints:
-			# 		map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
-			# 		path_pts.append(map_xy)
-			# 	self._set_path_markers(path_pts, 1)
-			# except IndexError:
-			# 	self.get_logger().info("Robot or goal location not in image map")
-			# except ValueError:
-			# 	if is_free(im_thresh, robot_current_loc_in_image):
-			# 		if is_free(im_thresh, goal_loc_in_image):
-			# 			self.get_logger().info(f"No valid path {robot_current_loc_in_image} to {goal_loc_in_image}")
-			# 		else:
-			# 			self.get_logger().info(f"Goal not free {robot_current_loc_in_image} to {goal_loc_in_image}")
-			# 	else:
-			# 		self.get_logger().info(f"Robot starting location not free {robot_current_loc_in_image}")
+				# original code:
+				# path_pts = []
+				# try:
+				# 	path = dijkstra(im_thresh, robot_current_loc_in_image, goal_loc_in_image, method="A*")
+				# 	self.get_logger().info(f"Path {path}")	
+				# 	path_waypoints = find_waypoints(im_thresh, path)
+				# 	self.get_logger().info(f"Path waypoints {path_waypoints}")	
+				# 	for p in path_waypoints:
+				# 		map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
+				# 		path_pts.append(map_xy)
+				# 	self._set_path_markers(path_pts, 1)
+				# except IndexError:
+				# 	self.get_logger().info("Robot or goal location not in image map")
+				# except ValueError:
+				# 	if is_free(im_thresh, robot_current_loc_in_image):
+				# 		if is_free(im_thresh, goal_loc_in_image):
+				# 			self.get_logger().info(f"No valid path {robot_current_loc_in_image} to {goal_loc_in_image}")
+				# 		else:
+				# 			self.get_logger().info(f"Goal not free {robot_current_loc_in_image} to {goal_loc_in_image}")
+				# 	else:
+				# 		self.get_logger().info(f"Robot starting location not free {robot_current_loc_in_image}")
 
 
-			self.get_logger().info(f"Replacing way points with new ones {path_pts}")	
-			self.replace_goal_points(path_pts, False)
+				self.get_logger().info(f"Replacing way points with new ones {path_pts}")	
+				self.replace_goal_points(path_pts, False)
 
 
 

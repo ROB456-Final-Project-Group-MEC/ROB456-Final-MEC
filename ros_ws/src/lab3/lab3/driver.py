@@ -273,43 +273,40 @@ class Lab3Driver(Node):
 	def set_target(self):
 		""" Convert the goal into an x,y position (target) in the ROBOT's coordinate space
 		@return the new target as a Point """
+		# Take a snapshot of the current goal
+		# This protects us from other threads modifying self.goal while this function is running
+		current_goal = self.goal
 
-		if self.goal:
-			# Transforms for all coordinate frames in the robot are stored in a transform tree
-			#  odom is the coordinate frame of the "world", base_link is the base link of the robot
-			# A transform stores a rotation/translation to go from one coordinate system to the other
-			transform = self.tf_buffer.lookup_transform('odom', 'base_link', rclpy.time.Time(), timeout=rclpy.duration.Duration(seconds=1.0))
+		# Check the snapshot, not the class variable
+		if current_goal is None:
+			self.get_logger().debug("set_target called but self.goal is None. Skipping.")
+			return None
 
-			# This applies the transform to the Stamped Point
-			#    Note: This does not work, for reasons that are unclear to me
-			self.target = do_transform_point(self.goal, transform)
-			
-			# This does the transform manually, by calculating the theta rotation from the quaternion
-			euler_ang = -atan2(2 * transform.transform.rotation.z * transform.transform.rotation.w,
-			                   1.0 - 2 * transform.transform.rotation.z * transform.transform.rotation.z)
-			
-			# Translate to the base link's origin
-			x = self.goal.point.x - transform.transform.translation.x
-			y = self.goal.point.y - transform.transform.translation.y
+		# Transforms for all coordinate frames in the robot are stored in a transform tree
+		transform = self.tf_buffer.lookup_transform('odom', 'base_link', rclpy.time.Time(), timeout=rclpy.duration.Duration(seconds=1.0))
 
-			# Do the rotation
-			rot_x = x * cos(euler_ang) - y * sin(euler_ang)
-			rot_y = x * sin(euler_ang) + y * cos(euler_ang)
-
-			self.target.point.x = rot_x
-			self.target.point.y = rot_y
-			if self.print_distance_messages:
-				self.get_logger().info(f'Target relative to robot: ({self.target.point.x:.2f}, {self.target.point.y:.2f}), orig ({self.goal.point.x, self.goal.point.y})')
-			
-		else:
-			if self.print_distance_messages:
-				self.get_logger().info(f'No target to get distance to')
-			self.target = None		
+		# This applies the transform to the Stamped Point
+		self.target = do_transform_point(current_goal, transform)
 		
-		# GUIDE: Calculate any additional variables here
-		#  Remember that the target's location is in its own coordinate frame at 0,0, angle 0 (x-axis)
-  # YOUR CODE HERE
+		# This does the transform manually, by calculating the theta rotation from the quaternion
+		euler_ang = -atan2(2 * transform.transform.rotation.z * transform.transform.rotation.w,
+						1.0 - 2 * transform.transform.rotation.z * transform.transform.rotation.z)
+		
+		# Translate to the base link's origin (USE THE SNAPSHOT HERE)
+		x = current_goal.point.x - transform.transform.translation.x
+		y = current_goal.point.y - transform.transform.translation.y
 
+		# Do the rotation
+		rot_x = x * cos(euler_ang) - y * sin(euler_ang)
+		rot_y = x * sin(euler_ang) + y * cos(euler_ang)
+
+		self.target.point.x = rot_x
+		self.target.point.y = rot_y
+		
+		if self.print_distance_messages:
+			self.get_logger().info(f'Target relative to robot: ({self.target.point.x:.2f}, {self.target.point.y:.2f}), orig ({current_goal.point.x, current_goal.point.y})')
+
+		# Calculate final navigation metrics
 		self.ang_to_goal = atan2(self.target.point.y, self.target.point.x)
 		self.dist_to_goal = self.distance_to_target()
 
@@ -318,6 +315,13 @@ class Lab3Driver(Node):
 	def scan_callback(self, scan):
 		""" Lidar scan callback
 		@param scan - has information about the scan, and the distances (see stopper.py in lab1)"""
+
+		# I'm adding this to catch the error when a scan comes in but there is no goal recieved yet from the send points node
+		# this usually happens right after completing a goal
+		if self.goal is None:
+			self.get_logger().debug("scan_callback called but self.goal is None. Skipping.")
+			return
+		
 	
 		if self.print_twist_messages:
 			self.get_logger().info("In scan callback")
@@ -356,6 +360,9 @@ class Lab3Driver(Node):
 		num_readings = len(scan.ranges)
 		range_max = scan.range_max
 		angle_delta = (angle_max-angle_min)/num_readings
+		angles = []
+		for i in range(num_readings):
+			angles.append(angle_min+i*angle_delta)
 
 		# if all scan ranges are max range, the scan sees nothing
 		if np.isclose(np.min(scan.ranges),range_max):
@@ -364,9 +371,12 @@ class Lab3Driver(Node):
 		
 		min_reading = np.min(scan.ranges)
 		# if I can go straight to the goal, do it
-		if dist_to_goal < min_reading:
-			return False, 0.0, 0.0
+		# if dist_to_goal < min_reading:
+		# 	# self.get_logger().info("goal closer than nearest object EZ")
+		# 	return False, 0.0, 0.0
 		
+
+		# helper functions:
 		# check if the obstacle is in front of the robot or not
 		def is_in_front(angle, dist, bot_width):
 			width_from_center = np.abs(dist*np.sin(angle))
@@ -374,42 +384,91 @@ class Lab3Driver(Node):
 				return True
 			return False
 		
+		# get the distance on the side of the robot
+		def get_side_dist(angle, dist):
+			width_from_center = np.abs(dist*np.sin(angle))
+			return width_from_center
+		
+
 		mindex = np.where(np.isclose(scan.ranges, min_reading))[0][0]
 		mangle = angle_min+(mindex*angle_delta)
-		my_bot_width = 0.4
+		my_bot_width = 0.40
 
-		# if we are facing the obstacle, back up (we already know the goal isn't between the bot and the obstacle)
-		if is_in_front(mangle, min_reading, my_bot_width*1.3) and min_reading < range_max/8:
-			return True, -0.55, 0.0
-		
-		# scale the speed based on distance to the obstacle
-		# trans = min_reading/(range_max/4)
-		trans = 0.0
-		rot = 1.0			
+		# TODONE try using VFH
 
-		# turn out of the way if the obstacle is in a location worth avoiding (in front and close)
-		if min_reading < range_max/5.5 and abs(mangle-ang_to_goal) < pi/6:
-			if is_in_front(mangle, min_reading, my_bot_width*1.5):
+
+		safe_dist = range_max / 5.5
 			
+		if min_reading > safe_dist:
+			return False, 0.0, 0.0
 
-				if mangle > 0 and mangle:
-					# object in front right, turn left
-					rot *= -0.8
+		# robot radius wihth buffer room
+		robot_radius = (my_bot_width/2)*1.6
+		
+		# Array of booleans: True = safe to travel, False = blocked
+		free_bins = np.ones(num_readings, dtype=bool)
+		
+		for i, r in enumerate(scan.ranges):
+			# Only care about valid readings within our safety distance
+			if r < safe_dist:
+				
+				if r <= robot_radius:
+					# If r is smaller than or equal to the robot radius, 
+					# the obstacle is basically inside/touching the robot. Block a massive chunk.
+					enlargement_angle = np.pi / 2.0
 				else:
-					# object in front left, turn right
-					rot *= 0.8
+					# Safe to calculate arcsin
+					enlargement_angle = np.arcsin(robot_radius / r)
 
-				return True, trans, rot
-			
-			elif abs(mangle) < pi/3:
-				# drive past the side of the obstacle
-				return True, 0.5, 0.0
-			
-			else:
-				# if the angle to the obstacle is greater than 60 degrees, turn a little back towards the goal
-				return True, 0.35, np.tanh(pi*ang_to_goal)
+				# 2. Convert that angle into a number of array bins
+				# We can safely do this now because enlargement_angle is guaranteed to be a valid number.
+				bins_to_block = int(enlargement_angle / angle_delta)
+					
+				
+				# Find the start and end indices to block out
+				start_idx = max(0, i - bins_to_block)
+				end_idx = min(num_readings - 1, i + bins_to_block)
+				
+				# Mark these bins as blocked
+				free_bins[start_idx:end_idx + 1] = False
+
+		# Emergency stop if all directions are blocked
+		if not np.any(free_bins):
+			self.get_logger().info("All directions blocked, rotating search EZ")
+			return True, 0.0, 1.0 # Velocity = 0, Rotate in place
 		
-		return False, 0.0, 0.0
+		# Find the bin that points closest to our goal
+		goal_bin = int((ang_to_goal - angle_min) / angle_delta)
+
+		best_bin = -1
+		min_cost = float('inf')
+
+		# Evaluate cost for each free bin
+		for i in range(num_readings):
+			if free_bins[i]:
+				# Because we already artificially widened the obstacles, 
+				# it is perfectly safe to pick the free bin closest to the goal.
+				cost = abs(i - goal_bin)
+				if cost < min_cost:
+					min_cost = cost
+					best_bin = i
+
+		# Convert the chosen bin back into a steering angle
+		target_heading = angle_min + (best_bin * angle_delta)
+		trans = 1.0 * np.tanh(dist_to_goal)
+		if is_in_front(mangle, min_reading, my_bot_width):
+			trans = 0.0
+		elif is_in_front(mangle, min_reading, my_bot_width*1.5):
+			trans = 0.6
+
+		if abs(target_heading) < np.pi/6:
+			# self.get_logger().info(f"target heading 1 (safe pass): {target_heading:.2f} EZ")
+			return True, trans, np.tanh(np.pi * target_heading)
+		else:
+			# self.get_logger().info(f"target heading 2 (hard turn): {target_heading:.2f} EZ")
+			return True, 0.0, np.tanh(np.pi * target_heading)
+
+
 
 	def get_twist(self, scan):
 		"""This is the method that calculate the twist
@@ -470,7 +529,7 @@ def main(args=None):
 
 	# Make a node class.  The idiom in ROS2 is to encapsulte everything in a class
 	# that derives from Node.
-	driver = Lab3Driver(threshold=0.725)
+	driver = Lab3Driver(threshold=0.8)
 
 	# Multi-threaded execution
 	executor = MultiThreadedExecutor()

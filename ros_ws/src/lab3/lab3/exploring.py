@@ -223,15 +223,17 @@ def find_all_possible_goals(im):
     # Create a mask of all free spaces
     free_spaces = (im == 255)
     
-    # "Grow" the free spaces by 1 pixel in all 8 directions
-    # A 3x3 matrix of True values tells it to use 8-connectivity
+    # expand the free spaces by 1 pixel in all 8 directions
+    # I used scipy's binary_dilation function to do this efficiently
     structure = np.ones((3, 3), dtype=bool)
     adjacent_to_free = binary_dilation(free_spaces, structure=structure)
     
     # Create a mask of all unseen spaces
     unseen_spaces = (im == 128)
     
-    # Create a mask for valid boundaries (the 10 pixel margin)
+    # Create a mask for valid boundaries 
+    # (a 15 pixel margin (I set this number arbitrarily) is cut off the edges to avoid out-of-bounds issues when checking neighbors 
+    # and to reduce the number pixels to work with later)
     valid_boundaries = np.zeros_like(im, dtype=bool)
     valid_boundaries[16:-16, 16:-16] = True
     
@@ -285,20 +287,22 @@ def find_best_points(im, possible_points : list, robot_loc=None):
 
     # --------------------- this is a much faster way to do it -------------------------
     if not possible_points:
-        return (-1, -1)
+        return (-1, -1) # this tells the send_points.py that there are no valid points to explore, 
+    # so it should end the exploring and be done i.e. terminate all the nodes
 
-    # This is to pass the autograder test
     # I'm using a SET here instead of a list because it allows for O(1) lookups, which will make the filter much faster.
     better_pts = set() 
     
     for x, y in possible_points:
         # Grab the 3x3 window instantly. 
-        # (Assuming your points are already filtered away from edges)
+        # (Assuming the points are already filtered away from edges)
         window = im[y-1:y+2, x-1:x+2]
         
         free_count = np.sum(window == 255)
         unseen_count = np.sum(window == 128)
         
+        # This is to pass the autograder test (and genuinely a good idea) 
+        # - we want to make sure there are at least 3 free neighbors and that all neighbors are either free or unseen (i.e., no occupied neighbors)
         if free_count >= 3 and (free_count + unseen_count) == 9:
             better_pts.add((x, y))
 
@@ -315,11 +319,13 @@ def find_best_points(im, possible_points : list, robot_loc=None):
                     
         if count_better_pts >= 5:
             better_filtered2.append((px, py))
+    # I could probably have found another way to do that with (&), but this is pretty fast already and I have spent enough time on this function
+    # I'm going to leave it like this for now, but if we need more performance improvements we can come back and try to optimize this part as well.
 
     if not better_filtered2:
         return (-1, -1)
     
-    return better_filtered2
+    return better_filtered2 # return the more filtered list of points, which should be better to explore than the original list of all possible points.
 
 
 
@@ -393,40 +399,13 @@ def find_best_point(im, possible_points : list, robot_loc, search_dist=80):
     # return min_dist_goal
 
     # --------------------- this is a much faster way to do it -------------------------
-    if not possible_points:
-        return (-1, -1)
 
-    # This is to pass the autograder test
-    # I'm using a SET here instead of a list because it allows for O(1) lookups, which will make the filter much faster.
-    better_pts = set() 
+    better_filtered2 = find_best_points(im, possible_points)
+    if not better_filtered2 or better_filtered2 == (-1, -1):
+        return (-1, -1)
     
-    for x, y in possible_points:
-        # Grab the 3x3 window instantly. 
-        # (Assuming your points are already filtered away from edges)
-        window = im[y-1:y+2, x-1:x+2]
-        
-        free_count = np.sum(window == 255)
-        unseen_count = np.sum(window == 128)
-        
-        if free_count >= 3 and (free_count + unseen_count) == 9:
-            better_pts.add((x, y))
-
-    # this checks if there are at least 5 points nearby that are also in better_pts, which means we are in a cluster of good points rather than an isolated one
-    # this still might be a little slow, but it is much faster than the original nested loops because of the O(1) set lookup.
-    better_filtered2 = []
-    for px, py in better_pts:
-        count_better_pts = 0
-        for ix in range(-2, 3):
-            for iy in range(-2, 3):
-                # Because better_pts is a SET, this check is instant
-                if (px + ix, py + iy) in better_pts:
-                    count_better_pts += 1
-                    
-        if count_better_pts >= 5:
-            better_filtered2.append((px, py))
-
-    if not better_filtered2:
-        return (-1, -1)
+    # all of that above was the same thing as the find_best_points function, which is just a more filtered version of the possible points.
+    # just call the function instead of rewriting the code stupid! (I deleted it)
 
     # check points relative to robot location and filter out points that are too close (less than search_dist)
     # Convert remaining points to a NumPy array for bulk math
@@ -436,7 +415,7 @@ def find_best_point(im, possible_points : list, robot_loc, search_dist=80):
     # Calculate the distance for ALL points simultaneously
     distances = np.hypot(valid_pts[:, 0] - rx, valid_pts[:, 1] - ry)
 
-    # Create a mask of points that are strictly greater than search_dist
+    # Create a mask of points that are greater than search_dist
     far_enough_mask = distances > search_dist
     
     # Apply the mask
@@ -449,12 +428,13 @@ def find_best_point(im, possible_points : list, robot_loc, search_dist=80):
 
     # Find the index of the absolute minimum distance in the remaining points
     best_idx = np.argmin(distances_far)
+    # this is something we could improve too, for path planning methodology
 
     # Return the point at that index as a tuple
     return tuple(valid_pts_far[best_idx])
 
 
-def find_waypoints(im, path, distance_between_points=5):
+def find_waypoints(im, path, distance_between_points=6):
     """ Place waypoints along the path
     @param im - the thresholded image
     @param path - the initial path
@@ -463,15 +443,23 @@ def find_waypoints(im, path, distance_between_points=5):
     # Again, no right answer here
     # YOUR CODE HERE
 
+    # store the path in a new variable so we don't mess with the original one
+    # and reverse the order because the Dijkstra function returns the path from goal to start, and we want it from start to goal
     new_path = path.copy()
     new_path.reverse()
 
+    # add the first point to the waypoints list, 
     waypoints = [new_path[0]]
 
+    # set an arbitrary initial direction that is different from any possible direction in the path, 
+    # so that the first point will always be update a new current direction
     curr_direct = -np.pi*3
     last_pt_indx = 0
     last_pt = new_path[0]
 
+    # loop through the path and add waypoints whenever the direction changes by more than 5 degrees 
+    # (or whatever distance_between_points is set to) from the last waypoint, 
+    # and also make sure that we are not adding waypoints too close together (less than distance_between_points*2 apart) to avoid adding too many waypoints in a straight line
     for i in range(len(new_path)-1):
         # divide by 36 for a 5 degree allowable tolerance for changing direction
         if i+1 > last_pt_indx + distance_between_points*2 and not np.isclose(curr_direct, np.arctan2(new_path[i+1][1] - last_pt[1], new_path[i+1][0] - last_pt[0]), atol=np.pi/36):
@@ -485,7 +473,9 @@ def find_waypoints(im, path, distance_between_points=5):
 
     waypoints.append(new_path[-1])
 
-    # waypoints.reverse()
+    # waypoints.reverse() # dont use this
+    # we don't need to reverse the waypoints because we reversed the path at the beginning of the function, so the waypoints are already in the correct order from start to goal
+    # this is the order the robot will follow them in, so we want them to be in the order from start to goal, which they are now.
     return waypoints
 
 

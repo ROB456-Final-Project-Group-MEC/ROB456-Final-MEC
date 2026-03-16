@@ -171,6 +171,16 @@ def is_reachable(im, pix):
     #  False otherwise
     # You can use four or eight connected - eight will return more points
     # YOUR CODE HERE
+
+    # ---- this is my original way of doing it but it is really slow, so I switched to the method below ----
+    # pixels_to_check = []
+    # for ix in range(-1, 2):
+    #     for iy in range(-1, 2):
+    #         pixels_to_check.append((pix[0] + ix, pix[1] + iy))
+
+    # return np.any([path_planning.is_free(im, p) for p in pixels_to_check])
+
+    # --------------------- this is a much faster way to do it -------------------------
     """ Checks if a pixel has a free neighbor (255) using a 3x3 slice. """
     x, y = pix
     
@@ -190,7 +200,26 @@ def find_all_possible_goals(im):
     @return list of possible pixel (x,y) locations"""
 
     # YOUR CODE HERE
-    # --------------------- this is the  faster way to do it -------------------------
+
+    # ---- this is my original way of doing it but it is really slow, so I switched to the method below ----
+    # # create a emplty list to hold the possible goals
+    # all_possible_goals = []
+
+    # # this is y,x
+    # unseen_points = np.argwhere(im == 128)
+    # # print(f"Found {len(unseen_points)} unseen points")
+    # # print(unseen_points)
+
+    # for unseen_point in unseen_points:
+    #     if not 10 < unseen_point[0] < im.shape[0] - 10 or not 10 < unseen_point[1] < im.shape[1] - 10:
+    #         continue
+    #     if is_reachable(im, (unseen_point[1], unseen_point[0])):
+    #         all_possible_goals.append((unseen_point[1], unseen_point[0]))
+
+
+    # return all_possible_goals
+
+    # --------------------- this is a much faster way to do it -------------------------
     # Create a mask of all free spaces
     free_spaces = (im == 255)
     
@@ -225,13 +254,41 @@ def find_best_points(im, possible_points : list, robot_loc=None):
     @param robot_loc - location of the robot (in case you want to factor that in)
     """
     # YOUR CODE HERE
-        # --------------------- this is a much faster way to do it -------------------------
+    # ---- this is my original way of doing it but it is really slow, so I switched to the method below ----
+    # better_pts = []
+    # for p in possible_points:
+    #     count_free = 0
+    #     count_unseen = 0
+    #     for ix in range(-1, 2):
+    #         for iy in range(-1, 2):
+    #             if path_planning.is_free(im, (p[0] + ix, p[1] + iy)):
+    #                 count_free += 1
+    #             elif path_planning.is_unseen(im, (p[0] + ix, p[1] + iy)):
+    #                 count_unseen += 1
+    #     if count_free < 3:
+    #         continue
+    #     if count_free + count_unseen != 9:
+    #         continue
+    #     better_pts.append(p)
+
+    # better_filtered2 = []
+    # for p in better_pts:
+    #     count_better_pts = 0
+    #     for ix in range(-2, 3):
+    #         for iy in range(-2, 3):
+    #             if (p[0] + ix, p[1] + iy) in better_pts:
+    #                 count_better_pts += 1
+    #     if count_better_pts >= 5:
+    #         better_filtered2.append(p)
+
+    # return better_filtered2
+
+    # --------------------- this is a much faster way to do it -------------------------
     if not possible_points:
         return (-1, -1)
 
     # This is to pass the autograder test
-    # I'm using a SET here instead of a list because it allows for O(1) lookups, 
-    # which will make the filter much faster.
+    # I'm using a SET here instead of a list because it allows for O(1) lookups, which will make the filter much faster.
     better_pts = set() 
     
     for x, y in possible_points:
@@ -245,10 +302,8 @@ def find_best_points(im, possible_points : list, robot_loc=None):
         if free_count >= 3 and (free_count + unseen_count) == 9:
             better_pts.add((x, y))
 
-    # this checks if there are at least 5 points nearby that are also in better_pts, 
-    # which means we are in a cluster of good points rather than an isolated one
-    # this still might be a little slow, but it is much faster than the original 
-    # nested loops because of the O(1) set lookup.
+    # this checks if there are at least 5 points nearby that are also in better_pts, which means we are in a cluster of good points rather than an isolated one
+    # this still might be a little slow, but it is much faster than the original nested loops because of the O(1) set lookup.
     better_filtered2 = []
     for px, py in better_pts:
         count_better_pts = 0
@@ -275,6 +330,68 @@ def find_best_point(im, possible_points : list, robot_loc, search_dist=80):
     @param robot_loc - location of the robot (in case you want to factor that in)
     """
     # YOUR CODE HERE
+
+    # ---- this is my original way of doing it but it is really slow, so I switched to the method below ----
+    # better_pts = []
+    # # min_dist = np.hypot(im.shape[1], im.shape[0])/
+    # min_dist_goal = (-1,-1)
+    # for p in possible_points:
+    #     count_free = 0
+    #     count_unseen = 0
+    #     for ix in range(-1, 2):
+    #         for iy in range(-1, 2):
+    #             if path_planning.is_free(im, (p[0] + ix, p[1] + iy)):
+    #                 count_free += 1
+    #             elif path_planning.is_unseen(im, (p[0] + ix, p[1] + iy)):
+    #                 count_unseen += 1
+    #     if count_free < 3:
+    #         continue
+    #     if count_free + count_unseen != 9:
+    #         continue
+    #     better_pts.append(p)
+
+    # better_filtered2 = []
+    # for p in better_pts:
+    #     count_better_pts = 0
+    #     for ix in range(-2, 3):
+    #         for iy in range(-2, 3):
+    #             if (p[0] + ix, p[1] + iy) in better_pts:
+    #                 count_better_pts += 1
+    #     if count_better_pts >= 5:
+    #         better_filtered2.append(p)
+
+    # at_least_search_dist = []
+    # for p in better_filtered2:
+    #     dist = np.hypot(p[0] - robot_loc[0], p[1] - robot_loc[1])
+    #     if dist > search_dist:
+    #         at_least_search_dist.append(p)
+
+
+
+    # min_dist_goal = (-1,-1)
+    # if len(at_least_search_dist) > 0:
+
+    #     min_dist = np.hypot(im.shape[1], im.shape[0])
+    #     for p in at_least_search_dist:
+            
+    #         dist = np.hypot(p[0] - robot_loc[0], p[1] - robot_loc[1])
+    #         if dist < min_dist:
+    #             min_dist_goal = p 
+    #             min_dist = dist
+
+    # else:
+
+    #     min_dist = np.hypot(im.shape[1], im.shape[0])
+    #     for p in at_least_search_dist:
+            
+    #         dist = np.hypot(p[0] - robot_loc[0], p[1] - robot_loc[1])
+    #         if dist < min_dist:
+    #             min_dist_goal = p 
+    #             min_dist = dist
+
+
+    # return min_dist_goal
+
     # --------------------- this is a much faster way to do it -------------------------
     if not possible_points:
         return (-1, -1)

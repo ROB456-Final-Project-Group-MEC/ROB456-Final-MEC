@@ -34,7 +34,7 @@ from lab3.exploring import find_all_possible_goals, find_best_point, find_waypoi
 
 # adding a scipy image filter and some image handling stuff to export the image
 from scipy.ndimage import median_filter
-import imageio.v2 as imageio
+import imagoio.v2 as imageio
 import sys
 
 
@@ -255,8 +255,8 @@ class SendPoints(Node):
 			line_marker.points = []
 			for p in self.goal_points:
 				pt = Point()
-				pt.x = float(p[0])
-				pt.y = float(p[1])
+				pt.x = p[0]
+				pt.y = p[1]
 				pt.z = 0.0
 				line_marker.points.append(pt)
 			
@@ -317,8 +317,8 @@ class SendPoints(Node):
 			line_marker.points = []
 			for p in path_list[0::skip]:
 				pt = Point()
-				pt.x = float(p[0])
-				pt.y = float(p[1])
+				pt.x = p[0]
+				pt.y = p[1]
 				pt.z = 0.0
 				line_marker.points.append(pt)
 			
@@ -409,7 +409,7 @@ class SendPoints(Node):
 
 		# GUIDE: Subtract the origin position of the map and then divide by the resolution
 		#   Don't forget to cast to an int
-  	# YOUR CODE HERE
+  # YOUR CODE HERE
 
 		# TODONE 
 
@@ -421,10 +421,12 @@ class SendPoints(Node):
 		# x_out_of_bounds = im_u < 0 or im_u >= info.width
 		# y_out_of_bounds = im_v < 0 or im_v >= info.height
 		# out_of_bounds = x_out_of_bounds or y_out_of_bounds
+
 		# self.get_logger().info(f"Point {pt_xy} --> {im_u,im_v}")
 		# if out_of_bounds:
 		# 	self.get_logger().info(f"Point {pt_xy} is out of bounds in the image map, returning closest point in bounds")
 		# 	return None
+
 		# self.get_logger().info(f"before {pt_xy} after {im_u}, {im_v}")
 		return (im_u, im_v)
 			
@@ -470,7 +472,7 @@ class SendPoints(Node):
 
 		#filtering the map data to try and eliminate noise. as the name implies, this is replacing a value with the median
 		# value of it and its neighbors. hopefully this will eliminate small outliers
-		im_thresh = median_filter(im_thresh, size = 5)
+		im_thresh = median_filter(im_thresh, size = 3)
 
 		# Location of robot
 		transform = self.tf_buffer.lookup_transform('odom', 'base_link', rclpy.time.Time(), timeout=rclpy.duration.Duration(seconds=1.0))
@@ -478,6 +480,21 @@ class SendPoints(Node):
 		robot_current_loc_in_image = self.from_map_to_image(map_msg=map_msg, pt_xy=robot_current_loc_in_map)
 		self.get_logger().info(f"Robot current location {robot_current_loc_in_map}")
 		# self.get_logger().info(f"Robot current location image {robot_current_loc_in_image}")
+
+
+
+		# ---------- I added this to the end so it doesn't run on every map update, just when searching for new goals ----------
+		# TODONE GUIDE: Change this to get just the points you might consider looking at and perhaps don't do it every time a map is made
+		# all_unseen_pts = find_all_possible_goals(im_thresh)  # Your exploring code
+		# better_pts = find_best_points(im_thresh, all_unseen_pts)
+		# reachable_pts = []
+		# for p in better_pts:
+		# 	map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
+		# 	reachable_pts.append(map_xy)
+
+		# # This puts markers in RViz for all unseen points
+		# self._set_reachable_markers(reachable_pts)
+
 
 		# GUIDE: This replaces the last goal if the robot has gone through the first two.
 		# THIS IS AN EXAMPLE of how to replace goal points. You can also use skip_current_goal and add_more_goal_points
@@ -512,20 +529,43 @@ class SendPoints(Node):
 				#going to try and save the map file as a map image
 				try: 
 					fname = "explored_map.pgm"
-					imageio.imwrite(fname, im_thresh)
+					imageio.iwrite(fname, im_thresh)
 					self.get_logger().info(f"map successfully saved as {fname}")
 				except Exception as e:
 					self.get_logger().info(f"failed to save the map: {e}")
 				unfinished = False
 
 				self.get_logger().info("shutting down send_node.py")
-				# raise SystemExit
+				raise SystemExit
 
 
 			if unfinished:
+
+				# original code
+				# The final goal point in image coords
+				# if len(self.goal_points) > 0:		
+				# 	goal_loc_in_image = self.from_map_to_image(map_msg=map_msg, pt_xy=self.goal_points[-1])
+				# else:
+				# 	goal_loc_in_image = (map_msg.info.width // 2, map_msg.info.height // 2)
+
+				# if 0 < goal_loc_in_image[0] < map_msg.info.width and 0 < goal_loc_in_image[1] < map_msg.info.height:
+				# 	# Headed towards last goal and it is now in the free space of the robot
+				# 	goal_loc_in_image = find_best_point(im, all_unseen_pts, robot_current_loc_in_image)  # Use your exploring code to find a good point
+				# 	self.get_logger().info(f"Getting best {goal_loc_in_image} {is_free(im, goal_loc_in_image)}")
+				# else:
+				# 	# This just looks for the last viable goal (that is free) - will grab a goal
+				# 	#  that's already been seen
+				# 	if self.goal_points:
+				# 		for p in self.goal_points:
+				# 			try_goal_loc_in_image = self.from_map_to_image(map_msg=map_msg, pt_xy=p)
+				# 			if try_goal_loc_in_image[0] < map_msg.info.width and try_goal_loc_in_image[1] < map_msg.info.height:
+				# 				if is_free(im_thresh, try_goal_loc_in_image):
+				# 					goal_loc_in_image = try_goal_loc_in_image
+
 				# GUIDE: This calls dijkstra with the goal location and plots the path that you return in RViz
 				#  Note: If you did not fix your code to deal with an unreachable point then this will handle that case
 				#   as an exception
+
 				# TODONE
 
 				path_pts = []
@@ -551,8 +591,33 @@ class SendPoints(Node):
 						self.get_logger().info(f"Robot starting location not free {robot_current_loc_in_image}")
 
 
+				# original code:
+				# path_pts = []
+				# try:
+				# 	path = dijkstra(im_thresh, robot_current_loc_in_image, goal_loc_in_image, method="A*")
+				# 	self.get_logger().info(f"Path {path}")	
+				# 	path_waypoints = find_waypoints(im_thresh, path)
+				# 	self.get_logger().info(f"Path waypoints {path_waypoints}")	
+				# 	for p in path_waypoints:
+				# 		map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
+				# 		path_pts.append(map_xy)
+				# 	self._set_path_markers(path_pts, 1)
+				# except IndexError:
+				# 	self.get_logger().info("Robot or goal location not in image map")
+				# except ValueError:
+				# 	if is_free(im_thresh, robot_current_loc_in_image):
+				# 		if is_free(im_thresh, goal_loc_in_image):
+				# 			self.get_logger().info(f"No valid path {robot_current_loc_in_image} to {goal_loc_in_image}")
+				# 		else:
+				# 			self.get_logger().info(f"Goal not free {robot_current_loc_in_image} to {goal_loc_in_image}")
+				# 	else:
+				# 		self.get_logger().info(f"Robot starting location not free {robot_current_loc_in_image}")
+
+
 				self.get_logger().info(f"Replacing way points with new ones {path_pts}")	
 				self.replace_goal_points(path_pts, False)
+
+
 
 
 # Unlike all the previous code, here we'll start up with a list of points to go to
@@ -561,7 +626,7 @@ def main(args=None):
 	rclpy.init(args=args)
 
 	# Create a list of points that will take the robot through the map
-	points = [(-6.0, -6.0), (-3.0,-3.0), (-4.0, 0.0)]
+	points = []
 	send_points = SendPoints(points)
 
 	# Multi-threaded execution

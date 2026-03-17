@@ -331,7 +331,7 @@ def find_best_point(im, possible_points : list, robot_loc, search_dist=80):
         return (-1, -1)
 
     # Find the index of the absolute minimum distance in the remaining points
-    best_idx = np.argmin(distances_far)
+    best_idx = np.argmax(distances_far)
 
     # Return the point at that index as a tuple
     return tuple(valid_pts_far[best_idx])

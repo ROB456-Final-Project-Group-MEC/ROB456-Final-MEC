@@ -33,9 +33,10 @@ from lab3.path_planning import dijkstra, is_free
 from lab3.exploring import find_all_possible_goals, find_best_point, find_waypoints, find_best_points
 
 # adding a scipy image filter and some image handling stuff to export the image
-from scipy.ndimage import median_filter
+from scipy.ndimage import median_filter, binary_dilation
 import imageio.v2 as imageio
 import sys
+import os
 
 
 class SendPoints(Node):
@@ -163,6 +164,10 @@ class SendPoints(Node):
 			# TODO GUIDE: This is where you should flag if you want to bail on the current set of goals
 			# entirely or just skip to the next one
 			self.get_logger().info(f"Did not get to goal, skipping {self.next_goal_index}")
+
+			# Adding a reset to the wayoints so it will calculate a new goal if the first one immediately times out
+			self.goal_points = [] 
+			self.goal_active = False
 
 		self._send_goal_future = None
 		self._result_future = None
@@ -473,7 +478,12 @@ class SendPoints(Node):
 
 		#filtering the map data to try and eliminate noise. as the name implies, this is replacing a value with the median
 		# value of it and its neighbors. hopefully this will eliminate small outliers
-		im_thresh = median_filter(im_thresh, size = 5)
+		im_thresh = median_filter(im_thresh, size = 3)
+
+		#next I'm going to try and thicken the walls with binary dilation... should help keep paths out of them...
+		wall_mask = (im_thresh == 0)
+		thick_walls = binary_dilation(wall_mask, iterations=2)
+		im_thresh[thick_walls] = 0
 
 		# Location of robot
 		transform = self.tf_buffer.lookup_transform('odom', 'base_link', rclpy.time.Time(), timeout=rclpy.duration.Duration(seconds=1.0))
@@ -511,8 +521,8 @@ class SendPoints(Node):
 				distances = np.linalg.norm(diff, axis=2)
 				min_distances = np.min(distances, axis=1)
 
-				# pretty sure we're dealing with ~20 px/m, so this should be a 1 m radius
-				blacklist_radius = 20.0 
+				# pretty sure we're dealing with ~20 px/m, so this should be a 1.1 m radius
+				blacklist_radius = 22.0 
 				valid_unseen_pts_arr = unseen_arr[min_distances >= blacklist_radius]
 				valid_unseen_pts = [tuple(pt) for pt in valid_unseen_pts_arr]
 			else:
@@ -533,7 +543,7 @@ class SendPoints(Node):
 
 			# next destination is a image pixel not robot coordinate
 			# changed all_unseen_points to valid_unseen_points
-			next_destination = find_best_point(im_thresh, valid_unseen_pts, robot_current_loc_in_image, search_dist=80)
+			next_destination = find_best_point(im_thresh, valid_unseen_pts, robot_current_loc_in_image, search_dist=30)
 
 			#maybe should be in_thresh instead of im?
 			self.get_logger().info(f"Getting best EZ: {next_destination} {is_free(im, next_destination)}")
@@ -558,7 +568,7 @@ class SendPoints(Node):
 				unfinished = False
 
 				self.get_logger().info("shutting down send_node.py")
-				# raise SystemExit
+				os._exit(0)
 
 
 			if unfinished:
@@ -600,7 +610,7 @@ def main(args=None):
 	rclpy.init(args=args)
 
 	# Create a list of points that will take the robot through the map
-	points = [(-6.0, -6.0), (-3.0,-3.0), (-4.0, 0.0)]
+	points = [(-6.0, -6.0), (-3.0,-3.0), (-3.0, -6.0)]
 	send_points = SendPoints(points)
 
 	# Multi-threaded execution

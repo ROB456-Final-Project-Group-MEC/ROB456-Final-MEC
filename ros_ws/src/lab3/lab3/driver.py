@@ -113,6 +113,10 @@ class Lab3Driver(Node):
 		self.count_since_last_scan = 0
 		self.print_twist_messages = False
 		self.print_distance_messages = False
+		self.max_speed = 0.4         # This moves about 0.01 m between scans
+		self.max_turn = np.pi * 0.1
+		self.waypoint_initial_time = None
+		self.estimated_travel_time = 0.0
 
 	def zero_twist(self):
 		"""This is a helper class method to create and zero-out a twist"""
@@ -231,6 +235,13 @@ class Lab3Driver(Node):
 		# Reset target
 		self.set_target()
 
+		# Some additions to create a fail safe timer
+		self.dist_to_goal = self.distance_to_target()
+		self.waypoint_initial_time = self.get_clock().now().nanoseconds * 1e-9
+
+		#the timer is going to be 7 x best possible time
+		self.distance_timer = self.dist_to_goal / (self.max_speed) * 7
+		
 		# Keep publishing feedback, then sleeping (so the laser scan can happen)
 		# GUIDE: If you aren't making progress, stop the while loop and mark the goal as failed
 		rate = self.create_rate(0.5)
@@ -241,6 +252,18 @@ class Lab3Driver(Node):
 				return result
 			
 			# self.get_logger().info("loop testing... EZ")
+			now = self.get_clock().now().nanoseconds * 1e-9
+
+			if now - self.waypoint_initial_time > self.distance_timer:
+				self.get_logger().info("Goal_aborted.")
+
+				t = self.zero_twist()
+				self.cmd_pub.publish(t)
+				self.goal = None
+
+				goal_handle.abort()
+				return result
+		
 			
 			feedback = NavTarget.Feedback()
 			feedback.distance.data = self.distance_to_target()
@@ -488,8 +511,8 @@ class Lab3Driver(Node):
 		#  Note: 0.4 is a good speed if nothing is in front of the robot
 
 		min_speed = 0.015
-		max_speed = 0.4         # This moves about 0.01 m between scans
-		max_turn = np.pi * 0.1  # This turns about 2 degrees between scans
+		max_speed = self.max_speed        # This moves about 0.01 m between scans
+		max_turn = self.max_turn  # This turns about 2 degrees between scans
 
   # YOUR CODE HERE
 
@@ -504,7 +527,7 @@ class Lab3Driver(Node):
 			t.twist.angular.z = rot*max_turn
 
 		else:
-			if abs(ang_to_goal) > pi/4:
+			if abs(ang_to_goal) > pi/6:
 				t.twist.linear.x = float(0.0)
 			else:
 				t.twist.linear.x = max_speed*np.tanh(dist_to_goal)

@@ -426,7 +426,7 @@ class Lab3Driver(Node):
 			return False, 0.0, 0.0
 
 		# robot radius wihth buffer room
-		robot_radius = (my_bot_width/2)*1.6
+		robot_radius = (my_bot_width/2)*1.425
 		
 		# Array of booleans: True = safe to travel, False = blocked
 		free_bins = np.ones(num_readings, dtype=bool)

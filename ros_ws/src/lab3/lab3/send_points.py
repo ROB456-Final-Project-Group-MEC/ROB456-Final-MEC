@@ -9,6 +9,7 @@
 # Every Python node in ROS2 should include these lines.  rclpy is the basic Python
 # ROS2 stuff, and Node is the class we're going to use to set up the node.
 import rclpy
+import time 
 from rclpy.node import Node
 
 import numpy as np
@@ -16,6 +17,7 @@ import numpy as np
 from threading import Lock
 
 from geometry_msgs.msg import PointStamped, Point
+from geometry_msgs.msg import TwistStamped
 from visualization_msgs.msg import Marker, MarkerArray
 from rclpy.action import ActionClient
 from rclpy.action.client import ClientGoalHandle
@@ -31,6 +33,7 @@ from tf2_ros.buffer import Buffer
 # Your path planning
 from lab3.path_planning import dijkstra, is_free
 from lab3.exploring import find_all_possible_goals, find_best_point, find_waypoints, find_best_points
+
 
 
 class SendPoints(Node):
@@ -88,12 +91,26 @@ class SendPoints(Node):
 		self.path_marker_pub = self.create_publisher(MarkerArray, 'path_points', 1)
 		self.reachable_marker_pub = self.create_publisher(MarkerArray, 'reachable_points', 1)
 
+		# Publisher for happy dance
+		self.happy_pub = self.create_publisher(TwistStamped, 'cmd_vel', 10)
+
+		# Boolean for happy dance
+		self.has_danced = False
+
+		# Boolean for initial circle
+		self.initial_circle_done = False
+
 
 	def _start_action_client(self):
 		""" This gets called by the timer whenever a new set of goals needs to be kicked off"""
 
 		# Cancel the timer - we're starting
 		self.start_timer.cancel()
+
+		if not self.initial_circle_done:
+			# If initial circle not done, do it and then start the action client after
+			self.action_client.wait_for_server()
+			self.drive_initial_circle()
 
 		if self.next_goal_index == 0:
 			# Wait for driver to start
@@ -206,7 +223,7 @@ class SendPoints(Node):
 
 		# This will kick start sending more goal points if it's stopped sending
 		if self._result_future == None:
-			self.start_timer().reset()   # Increment to the next goal
+			self.start_timer.reset()   # Increment to the next goal
 	
 	def replace_goal_points(self, goal_pts: list, skip_current: bool):
 		""" Replace the current list of goal points, and, optionally, skip the current
@@ -445,6 +462,72 @@ class SendPoints(Node):
 		# self.get_logger().info(f"before {pt_uv} after {pt_x}, {pt_y}")
 		return (pt_x, pt_y)
 
+	def perform_happy_dance(self):
+		self.get_logger().info("Map complete! Performing happy dance.")
+		
+		# Create the stamped message
+		t = TwistStamped()
+		t.header.frame_id = 'base_link' 
+		t.header.stamp = self.get_clock().now().to_msg()
+
+		# The dance
+		for _ in range(21): # Increase range to see it better
+			t.header.stamp = self.get_clock().now().to_msg()
+			# Alternate between 1.5 and -1.5
+			t.twist.angular.z = 1.5 # if (_ % 2 == 0) else -1.5
+			
+			self.happy_pub.publish(t)
+			time.sleep(0.2)
+			t.twist.angular.z = 0.0
+			t.twist.linear.x = 0.4
+			self.happy_pub.publish(t)
+			time.sleep(0.4)
+			t.twist.linear.x = -0.4
+			self.happy_pub.publish(t)
+			time.sleep(0.4)
+			t.twist.linear.x = 0.0
+
+		# Final Stop
+		t.twist.angular.z = 0.0
+		self.happy_pub.publish(t)
+		self.get_logger().info("Happy dance complete!")
+		self.has_danced = True
+
+	def drive_initial_circle(self):
+		self.get_logger().info("Doing initial circle...")
+		t = TwistStamped()
+		t.header.frame_id = 'base_link'
+		
+		# Define initial motion
+		angular_speed = 0.8 
+		linear_speed = 0.3  
+		duration = (2 * np.pi) / angular_speed
+		
+		# Time for completing the circle
+		start_time = time.time()
+		while time.time() - start_time < duration:
+			t.header.stamp = self.get_clock().now().to_msg()
+			t.twist.linear.x = linear_speed
+			t.twist.angular.z = angular_speed
+			self.happy_pub.publish(t)
+			time.sleep(0.1)
+
+		# Get robot current location
+		transform = self.tf_buffer.lookup_transform('odom', 'base_link', rclpy.time.Time())
+		curr_x = transform.transform.translation.x
+		curr_y = transform.transform.translation.y
+		
+		# Add an initial point to the goal list so robot doesn't immediately think it's done
+		self.add_more_goal_points([(curr_x + 1.0, curr_y)])
+			
+		# Stop before path planning
+		t.twist.linear.x = 0.0
+		t.twist.angular.z = 0.0
+		self.happy_pub.publish(t)
+
+		self.initial_circle_done = True
+		self.get_logger().info("Initial circle done. Starting path planning.")
+
 	def map_callback(self, map_msg : OccupancyGrid):
 		""" Called when the map gets updated. Size etc of the map is in the message"""
 		self.get_logger().info(f"Got map size {(map_msg.info.width, map_msg.info.height)}, resolution {map_msg.info.resolution}")
@@ -528,8 +611,17 @@ class SendPoints(Node):
 
 			unfinished = True
 			if next_destination == (-1.0, -1.0):
-				self.get_logger().info(f"Nowhere else to search map should be generated")
+				self.get_logger().info(f"Nowhere else to search: Map complete!")
 				unfinished = False
+				
+				# Only perform the dance if we haven't done it yet
+				if not self.has_danced:
+					# Set the flag to True immediately so another map update 
+					# doesn't try to trigger it while this one is running
+					self.has_danced = True 
+					self.perform_happy_dance()
+				else:
+					self.get_logger().debug("Exploration finished. Already danced!")
 
 
 			if unfinished:

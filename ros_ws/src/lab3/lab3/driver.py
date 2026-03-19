@@ -422,11 +422,13 @@ class Lab3Driver(Node):
 
 		safe_dist = range_max / 5.5
 			
+		# if the nearest obstackle is farther than what we deem safe to travel, then just go to the goal
 		if min_reading > safe_dist:
+			# self.get_logger().info("direct to goal EZ")
 			return False, 0.0, 0.0
 
 		# robot radius wihth buffer room
-		robot_radius = (my_bot_width/2)*1.425
+		robot_radius = (my_bot_width/2)*1.75
 		
 		# Array of booleans: True = safe to travel, False = blocked
 		free_bins = np.ones(num_readings, dtype=bool)
@@ -438,14 +440,14 @@ class Lab3Driver(Node):
 				if r <= robot_radius:
 					# If r is smaller than or equal to the robot radius, 
 					# the obstacle is basically inside/touching the robot. Block a massive chunk.
-					enlargement_angle = np.pi / 2.0
+					enlargement_angle = np.pi / 2.0 /1.5
 				else:
 					# Safe to calculate arcsin
-					enlargement_angle = np.arcsin(robot_radius / r)
+					enlargement_angle = np.arcsin(robot_radius / r) / 1.5
 
 				# 2. Convert that angle into a number of array bins
 				# We can safely do this now because enlargement_angle is guaranteed to be a valid number.
-				bins_to_block = int(enlargement_angle / angle_delta)
+				bins_to_block = max(int(enlargement_angle / angle_delta)-2,0)
 					
 				
 				# Find the start and end indices to block out

@@ -626,7 +626,7 @@ class SendPoints(Node):
 
 			# next destination is a image pixel not robot coordinate
 			# changed all_unseen_points to valid_unseen_points
-			next_destination = find_best_point(im_thresh, valid_unseen_pts, robot_current_loc_in_image, search_dist=30)
+			next_destination = find_best_point(im_thresh, valid_unseen_pts, robot_current_loc_in_image, search_dist=35)
 
 			#maybe should be in_thresh instead of im?
 			self.get_logger().info(f"Getting best EZ: {next_destination} {is_free(im, next_destination)}")
@@ -677,7 +677,7 @@ class SendPoints(Node):
 					self.get_logger().info(f"Path waypoints {path_waypoints}")	
 					for p in path_waypoints:
 						map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
-						if np.hypot(map_xy[0]-robot_current_loc_in_map[0],map_xy[1]-robot_current_loc_in_map[1]) > 0.1:
+						if np.hypot(map_xy[0]-robot_current_loc_in_map[0],map_xy[1]-robot_current_loc_in_map[1]) > 1:
 							path_pts.append(map_xy)
 					self._set_path_markers(path_pts, 1)
 				except IndexError:

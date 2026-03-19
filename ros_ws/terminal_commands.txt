@@ -70,5 +70,14 @@
                             source install/setup.bash
 
 
+# have to install imageio 
+
+                            # install it with this terminal command
+
+                            sudo apt update
+                            sudo apt install python3-imageio
+
+
+
     
 

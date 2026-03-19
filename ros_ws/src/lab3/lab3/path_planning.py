@@ -258,7 +258,7 @@ def dijkstra(im, robot_loc=(0, 0), goal_loc=(0, 0), method="Dijkstra", return_nu
             # I only check here if the nearby point is free, if not I skip it 
             # TODO
             # I may want to shek for other conditions like if it is unseen or not
-            if not is_free(im, point):
+            if not is_free(im, point) and point != goal_loc:
                 continue
 
             # validating that the point is at a legal location

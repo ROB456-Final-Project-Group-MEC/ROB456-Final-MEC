@@ -11,7 +11,7 @@ from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.substitutions import LaunchConfiguration, TextSubstitution
 from launch.conditions import IfCondition
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, SetLaunchConfiguration, IncludeLaunchDescription, Shutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
@@ -129,7 +129,8 @@ def generate_launch_description():
 
     send_points_node = Node(
         package="lab3",
-        executable="send_points"
+        executable="send_points",
+        on_exit=Shutdown()
     )
     ld.add_action(send_points_node)
 

@@ -1,0 +1,96 @@
+
+
+All the files should have adequate commenting
+
+
+
+When we launch the lab 3 launch file with parameters like which world to use and if we want to open rivz
+
+the launch file runs all of the nodes we are using
+
+
+
+Send Points:
+
+when it first launches, Send Points has a startup script (drive_initial_circle) that:
+    - gets the robot's current position, 
+    - sends twist commands to drive the robot in a small circle about its starting location
+    - adds the first goal point (relative to the robot's now current position) for the driver to target 
+
+has a lot of other functions for adding, removing, sending, callbacks, and publishing the goals
+i.e. essentially communicating with the driver
+
+also has other helper functions to convert stage map coordinates to image pixles and visa versa,
+
+there is a blacklist that adds the destinations to a list so that Send Points knows not to have the robot explore places nearby
+where it has already been. This helps speed up finding the whole map and helps identify when the whole map has been explored.
+
+After the whole map has been explored (no interesting points in places we haven't already been to) the robot has a happy dance
+the perform_happy_dance function sends twist commands to make the robot move forward and backward while spinning in place 
+which makes a cool flower looking pattern in rviz
+
+the map callback is where a majority of the Send Points logic is to make this project work.
+in map_callback:
+    - we apply our own image filterinag and thresholding
+    - only if there are no more goal to go to we (that way we don't do all the processing on every callback, only when we need to):
+        - we find the intersting points we want to explore
+        - filter those down to only the ones we haven't been nerby before
+        - update the rviz for interesting points
+        - find the best point to be our next destination (of the interesting points we haven't visited, which is closest to the minimum search disatance)
+        - add this to the self.current_destination in memory to be used in multiple places
+        - if the destination is (-1, -1), that means the exploring algorithm has identified there are no more intersting points to explore
+            - in this case: 
+            - export the current map
+            - perform the happy dance
+            - shutdown all the ros nodes
+            - skip the next part from exceuting and wasting time and compute
+        - if not (-1, -1), plan to go to the destination
+            - in this case:
+            - use A* to plan the route to the destination
+            - turn that path into only the fewest required waypoints to get the robot there
+            - ignore waypoints that are already close to the robot
+            - replace all the goals with the new waypoints
+
+
+
+Driver:
+
+has lots of communication functions to work out handling the goal points with the send points node
+other helper functions
+
+We added a timer to cancel the current goal if the driver doen't get there within the timer
+this helps abort if the driver gets stuck or the gola is some how not reachable
+
+the get_obstacle function uses the VFH obstacle avaoidance algorithm to go to he goal while avoiding wals and other obstacles
+it creates a list of "free" directions that the robot laser senses as safe, then chooses the one that aligns closest with the goal direction
+
+the get_twist function sends the commands to move the stage robot. if the laser scan detects no dangerous obstacles in get_obstacle,
+then it just drives straight to the goal
+
+
+
+Exploring:
+
+this file has been enhanced to reduce for loop usage to improve compute time during robot runs
+
+conversion map to pix and visa versa functions
+
+find_all_possible_goals finds everywhere in the image there are free spaces next to unseen spaces
+
+find_best_points further filters down our points of interest by only choosing ones that are clustered together
+
+find_best_point takes the list of points from find_best_points and chooses only one with the criteria:
+    - has to be farther away from the robot than the minimum search disatance
+    - then chooses the closest one
+
+find_waypoints takes a full path from the Dijkstra/A* algorithm and only takes points that change direction significantly
+this way goals are straight lines apart and are the nodes/joints connecting the arm lengths
+
+this file also has comments in the code
+
+
+
+Path planning:
+
+the Dijkstra/A* path planning algorithms
+this file also has its own comments

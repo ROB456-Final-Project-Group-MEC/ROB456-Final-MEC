@@ -108,6 +108,7 @@ class SendPoints(Node):
     
 		#some variables for a blacklist
 		self.visited_targets = []
+		self.current_destination = (-1,-1)
 
 
 	def _start_action_client(self):
@@ -181,6 +182,7 @@ class SendPoints(Node):
 			# TODO GUIDE: This is where you should flag if you want to bail on the current set of goals
 			# entirely or just skip to the next one
 			self.get_logger().info(f"Did not get to goal, skipping {self.next_goal_index}")
+			self.current_destination = (-1.0, -1.0)
 
 			# Adding a reset to the wayoints so it will calculate a new goal if the first one immediately times out
 			self.goal_points = [] 
@@ -588,8 +590,12 @@ class SendPoints(Node):
 		# THIS IS AN EXAMPLE of how to replace goal points. You can also use skip_current_goal and add_more_goal_points
 
 		if self.completed_all_goals():	
+			# saving the new destination to the blacklist
+			if self.current_destination != (-1.0, -1.0):
+				world_dest = self.from_image_to_map(map_msg=map_msg, pt_uv=self.current_destination)
+				self.visited_targets.append(world_dest)
 
-			all_unseen_pts = find_all_possible_goals(im_thresh)  # Your exploring code
+			all_unseen_pts = find_all_possible_goals(im_thresh)  # exploring code
 			better_pts = find_best_points(im_thresh, all_unseen_pts)
 
 
@@ -636,14 +642,10 @@ class SendPoints(Node):
 			# next destination is a image pixel not robot coordinate
 			# changed all_unseen_points to valid_unseen_points
 			next_destination = find_best_point(im_thresh, valid_unseen_pts, robot_current_loc_in_image, search_dist=47)
+			self.current_destination = next_destination
 
 			#maybe should be in_thresh instead of im?
 			self.get_logger().info(f"Getting best EZ: {next_destination} {is_free(im, next_destination)}")
-
-			# saving the new destination to the blacklist
-			if next_destination != (-1.0, -1.0):
-				world_dest = self.from_image_to_map(map_msg=map_msg, pt_uv=next_destination)
-				self.visited_targets.append(world_dest)
 
 			# back to original code... no more cory edits
 			unfinished = True

@@ -181,7 +181,7 @@ class SendPoints(Node):
 		else:
 			# TODO GUIDE: This is where you should flag if you want to bail on the current set of goals
 			# entirely or just skip to the next one
-			self.get_logger().info(f"Did not get to goal, skipping {self.next_goal_index}")
+			self.get_logger().info(f"Did not get to goal, skipping {self.current_destination}")
 			self.current_destination = (-1.0, -1.0)
 
 			# Adding a reset to the wayoints so it will calculate a new goal if the first one immediately times out
@@ -598,54 +598,65 @@ class SendPoints(Node):
 			all_unseen_pts = find_all_possible_goals(im_thresh)  # exploring code
 			better_pts = find_best_points(im_thresh, all_unseen_pts)
 
+			if better_pts == (-1.0, -1.0) or not better_pts:
+				next_destination = (-1.0, -1.0)
 
-			# cory addition: creating some logic to add visited pixels plus a radius to a black list
-			# first, convert world blacklist into current map pixels
-			visited_pixels = []
-			for pt in self.visited_targets:
-				pix = self.from_map_to_image(map_msg=map_msg, pt_xy=pt)
-				visited_pixels.append(pix)
-				
-			# next, converting the lists to np arrays for faster processing
-			# remember that these arrays should be Nx2... N points and (x,y)
-			if visited_pixels and better_pts:
-				unseen_arr = np.array(better_pts) 
-				visited_arr = np.array(visited_pixels)
-
-				# ok, this is a tricky bit of numpy math that AI recommended. 
-				# I think of it as getting a cartesian product of the differences between x,y values of the points
-				# the np.linalg.norm is just a shortcut for sqrt(diff[:,:,0]**2 + diff[:,:,1]**2)
-				diff = unseen_arr[:, np.newaxis, :] - visited_arr[np.newaxis, :, :]
-				distances = np.linalg.norm(diff, axis=2)
-				min_distances = np.min(distances, axis=1)
-
-				# pretty sure we're dealing with ~20 px/m, so 22 should be a 1.1 m radius
-				blacklist_radius = 12.5 
-				valid_unseen_pts_arr = unseen_arr[min_distances >= blacklist_radius]
-				valid_unseen_pts = [tuple(pt) for pt in valid_unseen_pts_arr]
 			else:
-				valid_unseen_pts = better_pts
 
-			reachable_pts = []
-			#changed from better_points to valid_unseen_pts
-			for p in valid_unseen_pts:
-				map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
-				reachable_pts.append(map_xy)
 
-			# This puts markers in RViz for all unseen points
-			self._set_reachable_markers(reachable_pts)
+				# cory addition: creating some logic to add visited pixels plus a radius to a black list
+				# first, convert world blacklist into current map pixels
+				visited_pixels = []
+				for pt in self.visited_targets:
+					pix = self.from_map_to_image(map_msg=map_msg, pt_xy=pt)
+					visited_pixels.append(pix)
+					
+				# next, converting the lists to np arrays for faster processing
+				# remember that these arrays should be Nx2... N points and (x,y)
+				if visited_pixels and better_pts:
+					try:
+						unseen_arr = np.array(better_pts) 
+						visited_arr = np.array(visited_pixels)
+		
+						# more cory edits
+						# I think of it as getting a cartesian product of the differences between x,y values of the points
+						# the np.linalg.norm is just a shortcut for sqrt(diff[:,:,0]**2 + diff[:,:,1]**2)
+						diff = unseen_arr[:, np.newaxis, :] - visited_arr[np.newaxis, :, :]
+						distances = np.linalg.norm(diff, axis=2)
+						min_distances = np.min(distances, axis=1)
 
-			# TODONE GUIDE: This is currently set up to call path planning every iteration (which is probably not what you want)
-			#   If we're on the way to the current goal, path plan to the closest goal point that is reachable
-			#   If we're headed towards the last goal, get a goal from best_pt
+						# pretty sure we're dealing with ~20 px/m, so 22 should be a 1.1 m radius
+						blacklist_radius = 20 
+						valid_unseen_pts_arr = unseen_arr[min_distances >= blacklist_radius]
+						valid_unseen_pts = [tuple(pt) for pt in valid_unseen_pts_arr]
+					except:
+						valid_unseen_pts = better_pts
 
-			# next destination is a image pixel not robot coordinate
-			# changed all_unseen_points to valid_unseen_points
-			next_destination = find_best_point(im_thresh, valid_unseen_pts, robot_current_loc_in_image, search_dist=47)
-			self.current_destination = next_destination
+				else:
+					valid_unseen_pts = better_pts
 
-			#maybe should be in_thresh instead of im?
-			self.get_logger().info(f"Getting best EZ: {next_destination} {is_free(im, next_destination)}")
+				reachable_pts = []
+				#changed from better_points to valid_unseen_pts
+				for p in valid_unseen_pts:
+					map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
+					reachable_pts.append(map_xy)
+
+				# This puts markers in RViz for all unseen points
+				self._set_reachable_markers(reachable_pts)
+
+				# TODONE GUIDE: This is currently set up to call path planning every iteration (which is probably not what you want)
+				#   If we're on the way to the current goal, path plan to the closest goal point that is reachable
+				#   If we're headed towards the last goal, get a goal from best_pt
+
+				# next destination is a image pixel not robot coordinate
+				# changed all_unseen_points to valid_unseen_points
+				next_destination = find_best_point(im_thresh, valid_unseen_pts, robot_current_loc_in_image, search_dist=47)
+				self.current_destination = next_destination
+
+				# maybe should be im_thresh instead of im
+				self.get_logger().info(f"Getting best EZ: {next_destination} {is_free(im_thresh, next_destination)}")
+
+
 
 			# back to original code... no more cory edits
 			unfinished = True

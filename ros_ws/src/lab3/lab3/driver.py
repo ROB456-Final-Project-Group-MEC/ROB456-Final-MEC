@@ -420,7 +420,7 @@ class Lab3Driver(Node):
 		# TODONE try using VFH
 
 
-		safe_dist = range_max / 5.5
+		safe_dist = range_max / 6.125
 			
 		# if the nearest obstackle is farther than what we deem safe to travel, then just go to the goal
 		if min_reading > safe_dist:
@@ -428,7 +428,7 @@ class Lab3Driver(Node):
 			return False, 0.0, 0.0
 
 		# robot radius wihth buffer room
-		robot_radius = (my_bot_width/2)*1.75
+		robot_radius = (my_bot_width/2)*1.8
 		
 		# Array of booleans: True = safe to travel, False = blocked
 		free_bins = np.ones(num_readings, dtype=bool)
@@ -440,10 +440,10 @@ class Lab3Driver(Node):
 				if r <= robot_radius:
 					# If r is smaller than or equal to the robot radius, 
 					# the obstacle is basically inside/touching the robot. Block a massive chunk.
-					enlargement_angle = np.pi / 2.0 /1.5
+					enlargement_angle = np.pi / 2.0
 				else:
 					# Safe to calculate arcsin
-					enlargement_angle = np.arcsin(robot_radius / r) / 1.5
+					enlargement_angle = np.arcsin(robot_radius / r)
 
 				# 2. Convert that angle into a number of array bins
 				# We can safely do this now because enlargement_angle is guaranteed to be a valid number.
@@ -460,7 +460,10 @@ class Lab3Driver(Node):
 		# Emergency stop if all directions are blocked
 		if not np.any(free_bins):
 			self.get_logger().info("All directions blocked, rotating search EZ")
-			return True, 0.0, 1.0 # Velocity = 0, Rotate in place
+			if mangle > 0:
+				return True, 0.0, -1.0 # Velocity = 0, Rotate in place
+			else:
+				return True, 0.0, 1.0 # Velocity = 0, Rotate in place the other direction
 		
 		# Find the bin that points closest to our goal
 		goal_bin = int((ang_to_goal - angle_min) / angle_delta)

@@ -360,6 +360,10 @@ def open_image(im_name):
     """ A helper function to open up the image and the yaml file and threshold
     @param im_name - name of image in Data directory
     @returns image anbd thresholded image"""
+    # filter_flag = True
+    # if im_name == "explored_map.pgm":
+    #     print("open map flag: image is already filtered")
+    #     filter_flag = True
 
     # Using imageio to read in the image
     import imageio.v2 as imageio

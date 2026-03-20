@@ -552,21 +552,30 @@ class SendPoints(Node):
 
 		im_thresh = np.zeros(im.shape, dtype=np.uint8)
 
+		#filtering the map data to try and eliminate noise. as the name implies, this is replacing a value with the median
+		# value of it and its neighbors. hopefully this will eliminate small outliers
+		im_thresh = median_filter(im_thresh, size = 1)
+
+
 		# Threshold image
 		im_thresh[im < 10] = 255    # Free
 		im_thresh[im >= 100] = 0    # Wall
 		im_thresh[im == -1] = 128   # Unknown
+		
+		# next I'm going to try and thicken the walls with binary dilation
+		# then thicken the unknowns to make better for choosing the best point.
+		wall_mask = (im_thresh == 0)
+		thick_walls = binary_dilation(wall_mask, iterations=3)
+		unknown_mask = (im_thresh == 128)
+		thicker_unknowns = binary_dilation(unknown_mask, iterations=1)
+		seen_mask = (im_thresh == 255)
+		thicker_seen = binary_dilation(seen_mask, iterations=1)
+		im_thresh[thick_walls] = 0
+		im_thresh[thicker_unknowns] = 128
+		# im_thresh[thicker_seen] = 255
 
 		self.get_logger().info(f"Num free {np.count_nonzero(im_thresh == 255)}, Num walls {np.count_nonzero(im_thresh == 0)}, Num unseen {np.count_nonzero(im_thresh == 128)}")
 
-		#filtering the map data to try and eliminate noise. as the name implies, this is replacing a value with the median
-		# value of it and its neighbors. hopefully this will eliminate small outliers
-		im_thresh = median_filter(im_thresh, size = 3)
-
-		#next I'm going to try and thicken the walls with binary dilation... should help keep paths out of them...
-		wall_mask = (im_thresh == 0)
-		thick_walls = binary_dilation(wall_mask, iterations=2)
-		im_thresh[thick_walls] = 0
 
 		# Location of robot
 		transform = self.tf_buffer.lookup_transform('odom', 'base_link', rclpy.time.Time(), timeout=rclpy.duration.Duration(seconds=1.0))
@@ -604,8 +613,8 @@ class SendPoints(Node):
 				distances = np.linalg.norm(diff, axis=2)
 				min_distances = np.min(distances, axis=1)
 
-				# pretty sure we're dealing with ~20 px/m, so this should be a 1.1 m radius
-				blacklist_radius = 22.0 
+				# pretty sure we're dealing with ~20 px/m, so 22 should be a 1.1 m radius
+				blacklist_radius = 12.5 
 				valid_unseen_pts_arr = unseen_arr[min_distances >= blacklist_radius]
 				valid_unseen_pts = [tuple(pt) for pt in valid_unseen_pts_arr]
 			else:
@@ -626,7 +635,7 @@ class SendPoints(Node):
 
 			# next destination is a image pixel not robot coordinate
 			# changed all_unseen_points to valid_unseen_points
-			next_destination = find_best_point(im_thresh, valid_unseen_pts, robot_current_loc_in_image, search_dist=35)
+			next_destination = find_best_point(im_thresh, valid_unseen_pts, robot_current_loc_in_image, search_dist=47)
 
 			#maybe should be in_thresh instead of im?
 			self.get_logger().info(f"Getting best EZ: {next_destination} {is_free(im, next_destination)}")

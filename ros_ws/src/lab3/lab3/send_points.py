@@ -665,8 +665,10 @@ class SendPoints(Node):
 
 				#going to try and save the map file as a map image
 				try: 
+					# need to reverse the order of im thresh so that the image is displayed in the correct orientation after export
+					corrected_image = np.flipud(im_thresh)
 					fname = "explored_map.pgm"
-					imageio.imwrite(fname, im_thresh)
+					imageio.imwrite(fname, corrected_image)
 					self.get_logger().info(f"map successfully saved as {fname}")
 				except Exception as e:
 					self.get_logger().info(f"failed to save the map: {e}")

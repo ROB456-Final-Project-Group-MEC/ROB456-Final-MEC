@@ -428,7 +428,7 @@ class Lab3Driver(Node):
 			return False, 0.0, 0.0
 
 		# robot radius wihth buffer room
-		robot_radius = (my_bot_width/2)*2.125
+		robot_radius = (my_bot_width/2)*1.55
 		
 		# Array of booleans: True = safe to travel, False = blocked
 		free_bins = np.ones(num_readings, dtype=bool)
@@ -483,7 +483,7 @@ class Lab3Driver(Node):
 
 		# Convert the chosen bin back into a steering angle
 		target_heading = angle_min + (best_bin * angle_delta)
-		trans = 1.0 * np.tanh(dist_to_goal)
+		trans = 1.0
 		if is_in_front(mangle, min_reading, my_bot_width):
 			trans = 0.0
 		elif is_in_front(mangle, min_reading, my_bot_width*1.5):
@@ -494,7 +494,7 @@ class Lab3Driver(Node):
 			return True, trans, np.tanh(np.pi * target_heading)
 		else:
 			# self.get_logger().info(f"target heading 2 (hard turn): {target_heading:.2f} EZ")
-			return True, 0.0, np.tanh(np.pi * target_heading)
+			return True, 0.1, np.tanh(np.pi * target_heading)
 
 
 

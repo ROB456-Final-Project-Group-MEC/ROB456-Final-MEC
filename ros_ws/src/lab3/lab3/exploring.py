@@ -275,7 +275,7 @@ def find_best_points(im, possible_points : list, robot_loc=None):
 
 
 
-def find_best_point(im, possible_points : list, robot_loc, search_dist=80):
+def find_best_point(im, possible_points : list, robot_loc, search_dist=80, filter_again=True):
     """ Pick one of the unseen points to go to
     @param im - thresholded image
     @param possible_points - possible points to chose from (list of tuples)
@@ -284,9 +284,14 @@ def find_best_point(im, possible_points : list, robot_loc, search_dist=80):
     # YOUR CODE HERE
     # --------------------- this is a much faster way to do it -------------------------
 
-    better_filtered2 = find_best_points(im, possible_points)
-    if not better_filtered2 or better_filtered2 == (-1, -1):
-        return (-1, -1)
+    if filter_again:
+        better_filtered2 = find_best_points(im, possible_points)
+        if not better_filtered2 or better_filtered2 == (-1, -1):
+            return (-1, -1)
+    elif possible_points and possible_points != (-1,-1):
+        better_filtered2 = possible_points
+    else:
+        return (-1,-1)
     
     # all of that above was the same thing as the find_best_points function, which is just a more filtered version of the possible points.
     # just call the function instead of rewriting the code stupid! (I deleted it)

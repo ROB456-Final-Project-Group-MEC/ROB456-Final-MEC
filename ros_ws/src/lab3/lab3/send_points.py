@@ -629,6 +629,7 @@ class SendPoints(Node):
 						blacklist_radius = 20 
 						valid_unseen_pts_arr = unseen_arr[min_distances >= blacklist_radius]
 						valid_unseen_pts = [tuple(pt) for pt in valid_unseen_pts_arr]
+						self.get_logger().info(f"Checked Blacklist EZ: num valid points {len(valid_unseen_pts)}")
 					except:
 						valid_unseen_pts = better_pts
 
@@ -650,7 +651,7 @@ class SendPoints(Node):
 
 				# next destination is a image pixel not robot coordinate
 				# changed all_unseen_points to valid_unseen_points
-				next_destination = find_best_point(im_thresh, valid_unseen_pts, robot_current_loc_in_image, search_dist=47)
+				next_destination = find_best_point(im_thresh, valid_unseen_pts, robot_current_loc_in_image, search_dist=40, filter_again=False)
 				self.current_destination = next_destination
 
 				# maybe should be im_thresh instead of im

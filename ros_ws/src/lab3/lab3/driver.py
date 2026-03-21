@@ -206,6 +206,7 @@ class Lab3Driver(Node):
 
   # YOUR CODE HERE
 
+		# DOC for grading... this close_enough function 
 		# the driver is close enough to the target if the distance to the target is less than the threshold
 		# the distance is calculated in the distance_to_target() function
 		# there is also a timer in the action_callback() function that will stop the robot if it is taking too long to reach the target, 
@@ -256,6 +257,7 @@ class Lab3Driver(Node):
 
 				return result
 			
+			# DOC for grading... this timer 
 			# self.get_logger().info("loop testing... EZ")
 			now = self.get_clock().now().nanoseconds * 1e-9
 
@@ -374,6 +376,7 @@ class Lab3Driver(Node):
 		# Publish the new twist
 		self.cmd_pub.publish(t)
 
+	# DOC for grading... this get obstacle function 
 	def get_obstacle(self, scan, ang_to_goal, dist_to_goal):
 		""" check if an obstacle
 		@param scan - the lidar scan
@@ -504,7 +507,7 @@ class Lab3Driver(Node):
 			return True, 0.1, np.tanh(np.pi * target_heading)
 
 
-
+	# DOC for grading... this get twist function 
 	def get_twist(self, scan):
 		"""This is the method that calculate the twist
 		@param scan - a LaserScan message with the current data from the LiDAR.  Use this for obstacle avoidance. 

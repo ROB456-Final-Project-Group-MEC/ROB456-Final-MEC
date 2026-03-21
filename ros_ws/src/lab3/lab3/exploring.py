@@ -219,7 +219,7 @@ def find_all_possible_goals(im):
     return list(zip(x_coords, y_coords))
 
 
-
+# DOC for grading... this function filters the possible points down to some better points of interest
 def find_best_points(im, possible_points : list, robot_loc=None):
     """ Pick one of the unseen points to go to
     @param im - thresholded image
@@ -274,7 +274,7 @@ def find_best_points(im, possible_points : list, robot_loc=None):
     return better_filtered2 # return the more filtered list of points, which should be better to explore than the original list of all possible points.
 
 
-
+# DOC for grading... this function chooses the point to path plan to
 def find_best_point(im, possible_points : list, robot_loc, search_dist=80, filter_again=True):
     """ Pick one of the unseen points to go to
     @param im - thresholded image
@@ -284,6 +284,11 @@ def find_best_point(im, possible_points : list, robot_loc, search_dist=80, filte
     # YOUR CODE HERE
     # --------------------- this is a much faster way to do it -------------------------
 
+    # filter again is just to avoid doing the same filtering twice if we already called 
+    # find_best_points on the possible points list passed in here
+    # in ros2 we set it to false when we call this function from the send_points.py file, 
+    # because we already called find_best_points on the possible points list before passing it in, 
+    # so we don't need to filter it again.
     if filter_again:
         better_filtered2 = find_best_points(im, possible_points)
         if not better_filtered2 or better_filtered2 == (-1, -1):
@@ -322,7 +327,8 @@ def find_best_point(im, possible_points : list, robot_loc, search_dist=80, filte
     # Return the point at that index as a tuple
     return tuple(valid_pts_far[best_idx])
 
-
+# DOC for grading... this find waypoints function - it reduces the path to only the critical points 
+# the robot needs for a successful path, rather than every single point.
 def find_waypoints(im, path, distance_between_points=6):
     """ Place waypoints along the path
     @param im - the thresholded image

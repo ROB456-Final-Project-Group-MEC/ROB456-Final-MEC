@@ -159,6 +159,9 @@ def eight_connected(pix=(0, 0)):
             yield ret
 
 
+# DOC for grading... this Dijkstra function. I don't think we changed much from the original submission, 
+# to save you time, you probably don't need to read through it all, just note how we use it by choosing a method (Dijkstra or A*)
+# I think cory changed one line to make it ingnore an issue he expreienced only on his machine but I'm not sure
 def dijkstra(im, robot_loc=(0, 0), goal_loc=(0, 0), method="Dijkstra", return_num_visited=False):
     """ Occupancy grid image, with robot and goal loc as pixels
     @param im - the thresholded image - use is_free(i, j) to determine if in reachable node

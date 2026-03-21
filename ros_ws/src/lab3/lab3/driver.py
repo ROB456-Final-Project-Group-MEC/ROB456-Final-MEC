@@ -206,6 +206,11 @@ class Lab3Driver(Node):
 
   # YOUR CODE HERE
 
+		# the driver is close enough to the target if the distance to the target is less than the threshold
+		# the distance is calculated in the distance_to_target() function
+		# there is also a timer in the action_callback() function that will stop the robot if it is taking too long to reach the target, 
+		# which can happen if the robot gets stuck on an obstacle or accidently drives into the wrong room
+
 		if self.distance_to_target() < self.threshold:
 			return True
 		else:
@@ -254,6 +259,8 @@ class Lab3Driver(Node):
 			# self.get_logger().info("loop testing... EZ")
 			now = self.get_clock().now().nanoseconds * 1e-9
 
+			# this timer is a fail safe in case the robot gets stuck on an obstacle or goes into the wrong room. 
+			# If it takes too long to reach the target, we want to stop trying and move on to the next target
 			if now - self.waypoint_initial_time > self.distance_timer:
 				self.get_logger().info("Goal_aborted.")
 
@@ -521,16 +528,26 @@ class Lab3Driver(Node):
 
   # YOUR CODE HERE
 
+
+		# calculate the angle and distance to the goal to pass into the obstacle avoidance function, 
+		# so we can make a more informed decision about how to avoid the obstacle 
+		# (e.g. if the goal is to the left, we want to try to go around the obstacle on the left)
 		ang_to_goal = self.ang_to_goal
 		dist_to_goal = self.dist_to_goal
 
-
+		# call the obstacle avoidance function to get the obstacle information and the suggested translation and rotation to avoid the obstacle
+		# this uses the VHF algorithm to find the best direction to go in based on the location of the obstacle and the goal
 		obstacle_found, trans, rot = self.get_obstacle(scan, ang_to_goal, dist_to_goal)
 
+		# if there is an obstacle, 
+		# use the suggested translation and rotation from the obstacle avoidance function, 
+		# which will try to steer around the obstacle while still generally heading towards the goal
 		if obstacle_found:
 			t.twist.linear.x = trans*max_speed
 			t.twist.angular.z = rot*max_turn
 
+		# if no obstacle, just go towards the goal, 
+		# using the angle to the goal and distance to the goal to set the speed and rotation
 		else:
 			if abs(ang_to_goal) > pi/6:
 				t.twist.linear.x = float(0.0)
@@ -541,7 +558,7 @@ class Lab3Driver(Node):
 					self.get_logger().info("using min speed")
 			t.twist.angular.z = max_turn*np.tanh(pi*ang_to_goal)
 
-
+		# do the twist! I feel like I'm dancing
 		if self.print_twist_messages:
 			self.get_logger().info(f"Setting twist forward {t.twist.linear.x} angle {t.twist.angular.z}")
 		return t			

@@ -443,7 +443,9 @@ class SendPoints(Node):
 		im_u = int((pt_xy[0] - info.origin.position.x) / info.resolution)
 		im_v = int((pt_xy[1] - info.origin.position.y) / info.resolution)
 
-		# this error handling actually causes more problems than it solves, so commenting out for now - you can add it back in if you want to fix it
+		return (im_u, im_v)
+
+		# this error handling (below) actually causes more problems than it solves, so commenting out for now - you can add it back in if you want to fix it
 
 		# x_out_of_bounds = im_u < 0 or im_u >= info.width
 		# y_out_of_bounds = im_v < 0 or im_v >= info.height
@@ -453,7 +455,7 @@ class SendPoints(Node):
 		# 	self.get_logger().info(f"Point {pt_xy} is out of bounds in the image map, returning closest point in bounds")
 		# 	return None
 		# self.get_logger().info(f"before {pt_xy} after {im_u}, {im_v}")
-		return (im_u, im_v)
+		
 			
 	def from_image_to_map(self, map_msg : OccupancyGrid, pt_uv = (0, 0)):
 		""" Convert from a point in the world to a point in the image
@@ -590,19 +592,26 @@ class SendPoints(Node):
 		# THIS IS AN EXAMPLE of how to replace goal points. You can also use skip_current_goal and add_more_goal_points
 
 		if self.completed_all_goals():	
-			# saving the new destination to the blacklist
+
+			# at this point the robot arrived at the last goal,
+			# [or if it failed is now labeled as (-1,-1)] 
+			# and we want to calculate a new goal based on the map., 
+			# so we want to add the last destination to the visited targets list 
+			# before we calculate the next goal and path plan to it. 
 			if self.current_destination != (-1.0, -1.0):
 				world_dest = self.from_image_to_map(map_msg=map_msg, pt_uv=self.current_destination)
 				self.visited_targets.append(world_dest)
 
+			# find the unseen points, then filter it to some better, more interesting points
 			all_unseen_pts = find_all_possible_goals(im_thresh)  # exploring code
 			better_pts = find_best_points(im_thresh, all_unseen_pts)
 
+			# if there are no better points, then we are done - set the next destination to (-1,-1) to trigger the end of the exploration
+			# nothing is interesting to explore, so we are done
 			if better_pts == (-1.0, -1.0) or not better_pts:
 				next_destination = (-1.0, -1.0)
 
 			else:
-
 
 				# cory addition: creating some logic to add visited pixels plus a radius to a black list
 				# first, convert world blacklist into current map pixels
@@ -636,6 +645,12 @@ class SendPoints(Node):
 				else:
 					valid_unseen_pts = better_pts
 
+				# what that did ^^^ was filter the better points to only include those that are at least a certain distance from any previously visited target.
+				# this should hopefully prevent the robot from getting stuck in a loop of going to the same point over and over again.
+				# if that code fails for some reason, it will just use the better points without the blacklist filtering, 
+				# so it shouldn't cause any issues if it doesn't work right away.
+
+				# this is for rviz - it will show all of the valid unseen points as green dots so you can see where the robot is considering going.
 				reachable_pts = []
 				#changed from better_points to valid_unseen_pts
 				for p in valid_unseen_pts:
@@ -651,15 +666,20 @@ class SendPoints(Node):
 
 				# next destination is a image pixel not robot coordinate
 				# changed all_unseen_points to valid_unseen_points
+				# filter again is false because the blacklist filtering and better points filtering are both already done in the valid_unseen_pts
 				next_destination = find_best_point(im_thresh, valid_unseen_pts, robot_current_loc_in_image, search_dist=40, filter_again=False)
+				# save the this planned destination to the current destination variable so that when we get to the goal we can add it to the blacklist
+				# while making sure to not add it to the blacklist if we fail to get to it and it gets set to (-1,-1)
 				self.current_destination = next_destination
 
-				# maybe should be im_thresh instead of im
+				# should be im_thresh instead of im
 				self.get_logger().info(f"Getting best EZ: {next_destination} {is_free(im_thresh, next_destination)}")
 
 
 
-			# back to original code... no more cory edits
+			# the finished variable is to know weather we have fully mapped the environment or not. 
+			# if we have no more valid points to explore, then we are done and can perform the happy dance and save the map. 
+			# if not, then we need to path plan to the next point and set it as the new goal.
 			unfinished = True
 			if next_destination == (-1.0, -1.0):
 				self.get_logger().info(f"Nowhere else to search, map complete!")
@@ -696,15 +716,24 @@ class SendPoints(Node):
 
 				path_pts = []
 				try:
+					# generate a path from the robot's current location to the next destination using A* algorithm
 					path = dijkstra(im_thresh, robot_current_loc_in_image, next_destination, method="A*")
-					self.get_logger().info(f"New Path {path}")	
+					self.get_logger().info(f"New Path {path}") # this is really long in console but it is valuable 
+					# to see the actual path points in the console for debugging, so I'm leaving it in for now. You can comment it out if you want.	
+					
+					# filter the path into only the most important waypoints
 					path_waypoints = find_waypoints(im_thresh, path)
 					self.get_logger().info(f"Path waypoints {path_waypoints}")	
+
+					# convert the path waypoints from image coordinates to map coordinates and save them in a list
+					# ignoring any points that are less than 1 m from the robot's current location
 					for p in path_waypoints:
 						map_xy = self.from_image_to_map(map_msg=map_msg, pt_uv=p)
 						if np.hypot(map_xy[0]-robot_current_loc_in_map[0],map_xy[1]-robot_current_loc_in_map[1]) > 1:
 							path_pts.append(map_xy)
 					self._set_path_markers(path_pts, 1)
+
+					# error handling and debugging
 				except IndexError:
 					self.get_logger().info("Robot or goal location not in image map")
 				except ValueError:

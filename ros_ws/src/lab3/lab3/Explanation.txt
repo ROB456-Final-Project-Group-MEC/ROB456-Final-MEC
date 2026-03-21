@@ -83,6 +83,8 @@ find_best_point takes the list of points from find_best_points and chooses only 
     - has to be farther away from the robot than the minimum search disatance
     - then chooses the closest one
 
+    * for a future implementation I plan to add a cost so that it prioritizes points in front of the robot so it doesn't waste so much time turning
+
 find_waypoints takes a full path from the Dijkstra/A* algorithm and only takes points that change direction significantly
 this way goals are straight lines apart and are the nodes/joints connecting the arm lengths
 
